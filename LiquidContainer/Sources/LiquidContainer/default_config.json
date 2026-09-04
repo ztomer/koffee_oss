@@ -1,0 +1,62 @@
+{
+  "physics": {
+    "accelerationDecay": 0.88,
+    "tiltResponse": 0.15,
+    "velocityDamping": 0.985,
+    "angleDecay": 0.985,
+    "springStrength": 0.03,
+    "angleInertia": 0.95,
+    "tiltAmplification": 4.5,
+    "waveFrequency1": 0.015,
+    "waveFrequency2": 0.025,
+    "waveSpeed1": 0.8,
+    "waveSpeed2": 0.6,
+    "waveAmplitude1": 3.0,
+    "waveAmplitude2": 2.0,
+    "waveFrequencies": [0.015, 0.025, 0.035],
+    "wavePhaseOffsets": [0.0, 2.0, 4.0],
+    "waveSpeedMultipliers": [0.8, 1.1, 1.4],
+    "waveDepthFactors": [1.0, 0.85, 0.7],
+    "waveMaxAmplitudes": [15.0, 12.0, 9.0],
+    "waveCoupling": [0.5, 0.2, 0.1]
+  },
+  "bubble": {
+    "minLiquidHeight": 30.0,
+    "cycleSeconds": 8.0,
+    "riseFraction": 0.8,
+    "viscosityCoeff": 2.5,
+    "wobbleBase": 3.0,
+    "defaultCount": 30,
+    "tiltFactor": 30.0,
+    "maxAlpha": 0.3
+  },
+  "caustics": {
+    "speed": 0.3,
+    "scale": 0.02,
+    "lightPenetration": 0.08,
+    "depthFalloff": 0.7,
+    "spotWidth": 6.0,
+    "spotHeightMin": 12.0,
+    "spotHeightMax": 32.0,
+    "colorRed": 0.92,
+    "colorGreen": 0.88,
+    "colorBlue": 0.80
+  },
+  "foam": {
+    "thickness": 20.0,
+    "clearOffset": 12.0,
+    "clearOpacity": 0.2,
+    "midOpacity": 0.5,
+    "lightOpacity": 0.7,
+    "creamOpacity": 0.8
+  },
+  "rendering": {
+    "waveStep": 2.0,
+    "causticStep": 2.0,
+    "animationFramerate": 30.0,
+    "gradientShiftFactor": 10.0,
+    "gradientAngleFactor": 0.8,
+    "gradientDisplacementFactor": 0.05,
+    "gradientWaveFactor": 0.02
+  }
+}

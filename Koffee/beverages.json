@@ -1,0 +1,100 @@
+{
+    "beverages": [
+        {
+            "name": "Espresso (30ml)",
+            "caffeine_mg": 63,
+            "category": "Coffee",
+            "icon": "Coffee"
+        },
+        {
+            "name": "Brewed Coffee (240ml)",
+            "caffeine_mg": 95,
+            "category": "Coffee",
+            "icon": "Coffee"
+        },
+        {
+            "name": "Instant Coffee (240ml)",
+            "caffeine_mg": 62,
+            "category": "Coffee",
+            "icon": "Coffee"
+        },
+        {
+            "name": "Cold Brew (240ml)",
+            "caffeine_mg": 200,
+            "category": "Coffee",
+            "icon": "Coffee"
+        },
+        {
+            "name": "Cafe Latte (240ml)",
+            "caffeine_mg": 75,
+            "category": "Coffee",
+            "icon": "Coffee"
+        },
+        {
+            "name": "Black Tea (240ml)",
+            "caffeine_mg": 47,
+            "category": "Tea",
+            "icon": "Tea"
+        },
+        {
+            "name": "Green Tea (240ml)",
+            "caffeine_mg": 28,
+            "category": "Tea",
+            "icon": "Tea"
+        },
+        {
+            "name": "Oolong Tea (240ml)",
+            "caffeine_mg": 37,
+            "category": "Tea",
+            "icon": "Tea"
+        },
+        {
+            "name": "White Tea (240ml)",
+            "caffeine_mg": 15,
+            "category": "Tea",
+            "icon": "Tea"
+        },
+        {
+            "name": "Cola (355ml)",
+            "caffeine_mg": 40,
+            "category": "Energy",
+            "icon": "Soft drink"
+        },
+        {
+            "name": "Red Bull (240ml)",
+            "caffeine_mg": 80,
+            "category": "Energy",
+            "icon": "Energy"
+        },
+        {
+            "name": "Monster Energy (240ml)",
+            "caffeine_mg": 160,
+            "category": "Energy",
+            "icon": "Energy"
+        },
+        {
+            "name": "Dark Chocolate (50g)",
+            "caffeine_mg": 25,
+            "category": "Other",
+            "icon": "Chocolate"
+        },
+        {
+            "name": "Milk Chocolate (50g)",
+            "caffeine_mg": 11,
+            "category": "Other",
+            "icon": "Chocolate"
+        },
+        {
+            "name": "Mate (240ml)",
+            "caffeine_mg": 85,
+            "category": "Other",
+            "icon": "Mate"
+        },
+        {
+            "name": "Kombucha (240ml)",
+            "caffeine_mg": 20,
+            "category": "Other",
+            "icon": "Milk"
+        }
+    ]
+}

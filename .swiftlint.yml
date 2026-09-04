@@ -1,0 +1,58 @@
+# Koffee SwiftLint configuration.
+# tools/gate.sh runs `swiftlint --strict` (warnings = errors), so any rule
+# violation fails the gate. Deviations from SwiftLint defaults are listed
+# here WITH reasons; everything else stays at defaults.
+
+included:
+  - Koffee
+  - KoffeeTests
+  - LiquidContainer/Sources
+  - LiquidContainer/Tests
+
+excluded:
+  - .build            # SPM derived products (generated runner.swift etc.)
+  - DerivedData
+  - DerivedDataTests
+
+line_length:
+  warning: 160        # SQL statements and PK debug logs read worse wrapped;
+                      # lines >160 are hand-wrapped
+  error: 220
+
+file_length:
+  warning: 500        # matches the house GOH_MAX_LINES=500 cap
+  error: 800
+
+type_body_length:
+  warning: 500        # SwiftUI view structs and the LiquidContainer physics
+                      # config are single cohesive bodies; mirror the house
+                      # GOH_MAX_LINES=500 file cap
+  error: 800
+
+function_body_length:
+  warning: 150        # algorithmic optimizers, PK generators, schema DDL;
+                      # bodies >150 lines are split by hand
+  error: 200
+
+cyclomatic_complexity:
+  warning: 25         # rules engines and physics solvers are sequential
+  error: 30           # branch lists - branch count is inherent, not accidental
+
+function_parameter_count:
+  warning: 8          # SwiftUI view builders and render entry points take
+  error: 12           # context bundles; a param object for 1-2 call sites
+                      # hides the signature
+
+identifier_name:
+  min_length: 1       # GRDB closure param `db`, test cancellables c1-c4, and
+                      # physics/geometry coords (x0, y1, gx, F2) are
+                      # domain-idiomatic short names
+
+large_tuple:
+  warning: 10         # effectively disabled: [(Date, Double)] dose tuples are
+  error: 20           # the PK engine's established idiom throughout
+
+nesting:
+  type_level:
+    warning: 2        # LiquidConfig groups its config structs two levels
+                      # deep inside the config namespace on purpose

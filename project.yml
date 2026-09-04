@@ -1,0 +1,106 @@
+name: Koffee
+options:
+  bundleIdPrefix: com.koffee
+  deploymentTarget:
+    macOS: "26.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    PRODUCT_NAME: Koffee
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "26.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGN_ENTITLEMENTS: ""
+    INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.healthcare-fitness"
+
+packages:
+  LiquidContainer:
+    path: LiquidContainer
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    majorVersion: 7.0.0
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess.git
+    majorVersion: 4.2
+  AppAuth:
+    url: https://github.com/openid/AppAuth-iOS.git
+    majorVersion: 1.7
+
+targets:
+  Koffee:
+    type: application
+    platform: macOS
+    sources:
+      - path: Koffee
+        excludes:
+          - "*.xcodeproj"
+          - "*.xcworkspace"
+    dependencies:
+      - package: LiquidContainer
+      - package: GRDB
+        product: GRDB
+      - package: KeychainAccess
+        product: KeychainAccess
+      - package: AppAuth
+        product: AppAuth
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_NSMainNibFile: ""
+        INFOPLIST_KEY_NSPrincipalClass: "NSApplication"
+        INFOPLIST_KEY_CFBundleName: "Koffee"
+        INFOPLIST_KEY_LSUIElement: "NO"
+        INFOPLIST_KEY_NSHighResolutionCapable: "YES"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"
+        COMBINE_HIDPI_IMAGES: "YES"
+
+  KoffeeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: KoffeeTests
+        excludes:
+          - "*.xcodeproj"
+          - "*.xcworkspace"
+    dependencies:
+      - target: Koffee
+      - package: LiquidContainer
+      - package: GRDB
+        product: GRDB
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: "YES"
+        PRODUCT_MODULE_NAME: "KoffeeTests"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Koffee.app/Contents/MacOS/Koffee"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        WRAPPER_EXTENSION: "xctest"
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "26.0"
+        DEFINES_MODULE: "YES"
+
+schemes:
+  Koffee:
+    build:
+      targets:
+        Koffee: all
+    run:
+      config: Debug
+  KoffeeTests:
+    build:
+      targets:
+        KoffeeTests: all
+    test:
+      config: Debug
+      targets:
+        - KoffeeTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

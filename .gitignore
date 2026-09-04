@@ -1,0 +1,24 @@
+# Build artifacts
+*.xcodeproj
+*.xcworkspace
+.build/
+.swiftpm/
+DerivedData/
+build/
+LiquidContainer/.build/
+
+# Xcode
+*.DS_Store
+*.swp
+*~
+
+# Package resolved (can be regenerated)
+Package.resolved
+
+# Debug logs
+/tmp/koffee.log
+
+# Build scripts (local only)
+clean.sh
+build.sh
+run.sh
