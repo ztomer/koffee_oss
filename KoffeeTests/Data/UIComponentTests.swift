@@ -27,4 +27,15 @@ final class UIComponentTests: XCTestCase {
     func testCaffeineIsOnlyCompound() {
         XCTAssertEqual(NootropicCompound.allCases, [.caffeine])
     }
+
+    func testBeverageSymbolNameMapsByCategory() {
+        func symbol(for category: String) -> String {
+            BeverageModel(name: "X", caffeineMg: 10, category: category, icon: category).symbolName
+        }
+        XCTAssertEqual(symbol(for: "Coffee"), "cup.and.saucer.fill")
+        XCTAssertEqual(symbol(for: "Tea"), "leaf.fill")
+        XCTAssertEqual(symbol(for: "Energy"), "bolt.fill")
+        XCTAssertEqual(symbol(for: "Other"), "mug.fill")
+        XCTAssertEqual(symbol(for: "coffee"), "cup.and.saucer.fill", "Mapping is case-insensitive")
+    }
 }

@@ -76,6 +76,13 @@ final class AppState: ObservableObject {
         return Sensitivity(swiftDataValue: profile.sensitivity)?.safeCaffeineAtBedtime ?? CaffeineConstants.defaultBedtimeMg
     }
 
+    /// Daily intake ceiling (weight/sensitivity-derived). The bedtime limit
+    /// governs the *bedtime projection*; this governs *today's total*.
+    var dailyCaffeineLimit: Double {
+        guard let profile = profile else { return 400 }
+        return (Sensitivity(swiftDataValue: profile.sensitivity)?.multiplier ?? 1.0) * 400
+    }
+
     var effectiveWakeTime: Date {
         profile?.wakeTime ?? DateHelper.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!
     }

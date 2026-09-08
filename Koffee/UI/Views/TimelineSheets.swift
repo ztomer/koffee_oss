@@ -46,7 +46,7 @@ struct AddBeverageSheet: View {
                     selectedBeverageId = beverage.id
                 } label: {
                     HStack {
-                        Text(beverage.icon).font(.title2)
+                        Image(systemName: beverage.symbolName).font(.title2).foregroundStyle(.orange)
                         VStack(alignment: .leading) {
                             Text(beverage.name).font(.headline)
                             Text("\(beverage.caffeineMg)mg caffeine").font(.caption).foregroundStyle(.secondary)

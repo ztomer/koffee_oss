@@ -16,8 +16,9 @@ struct BeveragePickerSheet: View {
                     onSelect(beverage)
                 } label: {
                     HStack {
-                        Text(beverage.icon)
+                        Image(systemName: beverage.symbolName)
                             .font(.title2)
+                            .foregroundStyle(.orange)
                         VStack(alignment: .leading) {
                             Text(beverage.name)
                                 .font(.headline)

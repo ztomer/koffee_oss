@@ -193,7 +193,7 @@ var pendingCaffeine: Double {
         ], spacing: 12) {
             CaffeineMeterView(
                 level: currentCaffeine,
-                safeLimit: safeLimit
+                safeLimit: appState.dailyCaffeineLimit
             )
             .frame(width: largeSize, height: largeSize)
 

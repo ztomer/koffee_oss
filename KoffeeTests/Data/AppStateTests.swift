@@ -70,4 +70,24 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(summary.doseCount, 2)
         XCTAssertEqual(summary.totalCaffeineMg, 145.0)
     }
+
+    func testDailyCaffeineLimitFollowsSensitivity() throws {
+        // Bedtime limit and daily limit are different quantities: the gauge
+        // compares today's total against the daily ceiling (multiplier * 400),
+        // never against the bedtime projection limit.
+        var profile = try appState.getOrCreateProfile()
+        profile.sensitivity = Sensitivity.high.swiftDataValue
+        try appState.saveProfile(profile)
+
+        let exp = expectation(description: "profile updated")
+        exp.assertForOverFulfill = false
+        let c = appState.$profile.dropFirst().sink { p in
+            if p?.sensitivity == Sensitivity.high.swiftDataValue { exp.fulfill() }
+        }
+        wait(for: [exp], timeout: 2.0)
+        c.cancel()
+
+        XCTAssertEqual(appState.dailyCaffeineLimit, 0.8 * 400, accuracy: 0.001)
+        XCTAssertNotEqual(appState.dailyCaffeineLimit, appState.safeCaffeineLimit)
+    }
 }

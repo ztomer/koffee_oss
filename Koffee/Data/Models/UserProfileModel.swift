@@ -125,4 +125,16 @@ struct BeverageModel: FetchableRecord, PersistableRecord, Codable, Identifiable,
         self.icon = icon
         self.sortOrder = sortOrder
     }
+
+    /// SF Symbol for the beverage category. The stored `icon` field holds a
+    /// category word ("Coffee", "Tea", ...), not a renderable glyph, so views
+    /// must use this instead of `Text(beverage.icon)`.
+    var symbolName: String {
+        switch category.lowercased() {
+        case "coffee": return "cup.and.saucer.fill"
+        case "tea": return "leaf.fill"
+        case "energy": return "bolt.fill"
+        default: return "mug.fill"
+        }
+    }
 }

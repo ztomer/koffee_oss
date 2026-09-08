@@ -10,11 +10,11 @@ struct CaffeineMeterView: View {
 
     private var statusText: String {
         if level <= safeLimit * 0.5 {
-            return "Sleep well"
+            return "On track"
         } else if level <= safeLimit {
-            return "Okay"
+            return "Moderate"
         } else {
-            return "Too high"
+            return "Over limit"
         }
     }
 
@@ -59,9 +59,9 @@ struct CaffeineMeterView: View {
 
 #Preview {
     HStack(spacing: 20) {
-        CaffeineMeterView(level: 25, safeLimit: 50)
-        CaffeineMeterView(level: 40, safeLimit: 50)
-        CaffeineMeterView(level: 80, safeLimit: 50)
+        CaffeineMeterView(level: 100, safeLimit: 400)
+        CaffeineMeterView(level: 300, safeLimit: 400)
+        CaffeineMeterView(level: 450, safeLimit: 400)
     }
     .padding()
 }

@@ -1,0 +1,5 @@
+{"time":"2026-09-08T21:57:39.886Z","line":"add","sessionID":"ses_f7d27e1f7ffex9Pxz9N0uoog3y","job":"goal","label":"goal: every idle [goal] -> make this the best coffee intake app in history, max no-progress 3"}
+{"time":"2026-09-08T21:58:46.310Z","line":"replace","sessionID":"ses_f7d27e1f7ffex9Pxz9N0uoog3y","job":"goal","label":"goal: every idle [goal] -> make this the best coffee intake app in history, max no-progress 3"}
+{"time":"2026-09-08T21:58:46.565Z","line":"run","sessionID":"ses_f7d27e1f7ffex9Pxz9N0uoog3y","job":"goal","runCount":1}
+{"time":"2026-09-08T22:01:47.887Z","line":"active-stale-recovery","sessionID":"ses_f7d27e1f7ffex9Pxz9N0uoog3y","job":"goal","startedAt":1788904726566}
+{"time":"2026-09-08T22:01:47.889Z","line":"goal-no-progress","sessionID":"ses_f7d27e1f7ffex9Pxz9N0uoog3y","job":"goal","count":1,"limit":3}

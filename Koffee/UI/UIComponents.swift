@@ -26,7 +26,7 @@ struct DoseRowView: View {
             Picker("", selection: $selectedBeverageId) {
                 Text("Unknown").tag(nil as String?)
                 ForEach(beverages, id: \.id) { beverage in
-                    Text("\(beverage.icon) \(beverage.name) - \(beverage.caffeineMg)mg")
+                    Text("\(beverage.name) - \(beverage.caffeineMg)mg")
                         .tag(beverage.id as String?)
                 }
             }
