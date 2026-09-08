@@ -22,3 +22,7 @@ Package.resolved
 clean.sh
 build.sh
 run.sh
+*.profraw
+*.sqlite-shm
+*.sqlite-wal
+__pycache__/
