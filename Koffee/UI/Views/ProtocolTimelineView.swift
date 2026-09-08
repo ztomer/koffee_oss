@@ -85,7 +85,6 @@ struct ProtocolTimelineView: View {
     @ObservedObject var appState: AppState
 
     @State private var selectedEntry: ProtocolTimelineEntry?
-    @State private var showingBeveragePicker = false
 
     private var completedPlanItemIDs: Set<String> {
         appState.takenPlanItemIds
@@ -136,15 +135,6 @@ struct ProtocolTimelineView: View {
             quickActionDock
         }
         .background(Color(nsColor: .controlBackgroundColor))
-        .onReceive(NotificationCenter.default.publisher(for: .addDose)) { _ in
-            showingBeveragePicker = true
-        }
-        .sheet(isPresented: $showingBeveragePicker) {
-            AddBeverageSheet(appState: appState, onAdd: { beverage, time in
-                try? appState.addDose(beverageId: beverage.id, timestamp: time, caffeineMg: Double(beverage.caffeineMg), beverageName: beverage.name)
-                showingBeveragePicker = false
-            }, onDismiss: { showingBeveragePicker = false })
-        }
     }
 
     private var quickActionDock: some View {
@@ -154,7 +144,10 @@ struct ProtocolTimelineView: View {
                 label: NootropicCompound.caffeine.rawValue,
                 color: .orange
             ) {
-                showingBeveragePicker = true
+                // Single funnel: the add-dose sheet lives in MainSplitView and
+                // listens for this notification, so logging works whether or
+                // not the inspector is visible.
+                NotificationCenter.default.post(name: .addDose, object: nil)
             }
         }
         .padding(.horizontal, 12)

@@ -212,7 +212,7 @@ var pendingCaffeine: Double {
     }
 
     private var bedtimeStatusIcon: String {
-        caffeineAtBedtime <= safeLimit * 0.5 ? "moon.fill" : (caffeineAtBedtime <= safeLimit ? "exclamationmark.triangle" : "moon.zzz.fill")
+        caffeineAtBedtime <= safeLimit * 0.5 ? "moon.fill" : (caffeineAtBedtime <= safeLimit ? "eye.fill" : "exclamationmark.triangle.fill")
     }
 
     private var bedtimeStatusColor: Color {

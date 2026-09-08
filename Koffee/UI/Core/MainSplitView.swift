@@ -47,6 +47,7 @@ struct MainSplitView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showInspector: Bool = true
     @State private var caffeineAtBedtime: Double = 0
+    @State private var showingBeveragePicker = false
 
     init(appState: AppState, sharedPhysicsEngine: SharedPhysicsEngine) {
         self.appState = appState
@@ -63,8 +64,8 @@ struct MainSplitView: View {
         appState.todayCaffeineTotal
     }
 
-    var activeStimulantLoad: Double {
-        appState.todayCaffeineTotal
+    var pendingCaffeineTotal: Double {
+        appState.pendingPlanItemsTodayByCompound("caffeine").reduce(0) { $0 + $1.doseMg }
     }
 
     var bedtimeStatus: String {
@@ -92,10 +93,10 @@ struct MainSplitView: View {
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 4) {
-                Image(systemName: "bolt.fill")
+                Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 10))
-                    .foregroundStyle(.yellow)
-                Text("\(Int(activeStimulantLoad))mg")
+                    .foregroundStyle(.blue)
+                Text("\(Int(pendingCaffeineTotal))mg")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
             }
         }
@@ -131,6 +132,25 @@ struct MainSplitView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .onReceive(NotificationCenter.default.publisher(for: .addDose)) { _ in
+            showingBeveragePicker = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .takeNext)) { _ in
+            if let next = appState.pendingPlanItemsTodayByCompound("caffeine").sorted(by: { $0.scheduledTime < $1.scheduledTime }).first {
+                try? appState.updatePlanItemStatus(id: next.id, status: .taken)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .skipNext)) { _ in
+            if let next = appState.pendingPlanItemsTodayByCompound("caffeine").sorted(by: { $0.scheduledTime < $1.scheduledTime }).first {
+                try? appState.updatePlanItemStatus(id: next.id, status: .skipped)
+            }
+        }
+        .sheet(isPresented: $showingBeveragePicker) {
+            AddBeverageSheet(appState: appState, onAdd: { beverage, time in
+                try? appState.addDose(beverageId: beverage.id, timestamp: time, caffeineMg: Double(beverage.caffeineMg), beverageName: beverage.name)
+                showingBeveragePicker = false
+            }, onDismiss: { showingBeveragePicker = false })
+        }
         .simultaneousGesture(
             DragGesture(minimumDistance: 1)
                 .onChanged { value in
