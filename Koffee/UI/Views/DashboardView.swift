@@ -47,93 +47,25 @@ var pendingCaffeine: Double {
         return load
     }
 
-    var activeDepressantLoad: Double {
-        let now = Date()
-
-        var load: Double = 0
-        let todaySupplements = appState.supplementsForDate(now)
-        for log in todaySupplements {
-            if let compound = NootropicCompound(rawValue: log.compoundName) {
-                load += compound.optimalDoseMg * 0.2
-            }
-        }
-
-        let pendingSupplements = appState.pendingNonCaffeineItemsToday()
-        for item in pendingSupplements {
-            if let compound = NootropicCompound(rawValue: item.compoundName) {
-                load += compound.optimalDoseMg * 0.2
-            }
-        }
-
-        return load
-    }
-
     private var compositeDoses: [Dose] {
         // Use AppState method
         let todayDoses = appState.dosesForDate(Date())
 
         let actuals = todayDoses.map { dose in
-            let compound = NootropicCompound(rawValue: dose.compoundUuid ?? "Caffeine") ?? .caffeine
-            return Dose(time: dose.timestamp, amount: dose.caffeineMg, compound: compound, isPlanItem: false)
+            Dose(time: dose.timestamp, amount: dose.caffeineMg, compound: .caffeine, isPlanItem: false)
         }
 
 // Get today's pending plan items
         let planDoses = appState.pendingPlanItemsToday
 
         let planDoseData = planDoses.map { item in
-            let compound = NootropicCompound(rawValue: item.compoundUuid) ?? .caffeine
-            return Dose(time: item.scheduledTime, amount: item.doseMg, compound: compound, isPlanItem: true)
+            Dose(time: item.scheduledTime, amount: item.doseMg, compound: .caffeine, isPlanItem: true)
         }
 
         var result = actuals
         result.append(contentsOf: planDoseData)
 
         return result.sorted { ($0.time ?? Date.distantPast) < ($1.time ?? Date.distantPast) }
-    }
-
-private var compositeSupplements: [NootropicCompound] {
-        let now = Date()
-        var compounds: Set<NootropicCompound> = []
-
-        // Include ALL logged supplements for today
-        let todaySupplements = appState.supplementsForDate(now)
-        for log in todaySupplements {
-            if let compound = NootropicCompound(rawValue: log.compoundName) {
-                compounds.insert(compound)
-            }
-        }
-
-        // Include ALL pending plan items for today
-        let pendingSupplements = appState.pendingNonCaffeineItemsToday()
-        for item in pendingSupplements {
-            if let compound = NootropicCompound(rawValue: item.compoundName) {
-                compounds.insert(compound)
-            }
-        }
-
-        return Array(compounds)
-    }
-
-    private var topRecommendation: ActionableRecommendation? {
-        guard let profile = appState.profile else { return nil }
-
-        let optimizer = StackOptimizerEngine(goal: OptimizationGoal(rawValue: profile.optimizationGoal) ?? .balanced)
-
-        let currentInterventions = appState.todayInterventions
-        let hoursUntilBedtime = profile.sleepTime.timeIntervalSince(Date()) / 3600
-
-        let recommendations = optimizer.generateRecommendations(
-            activeCaffeineMg: caffeineAtBedtime,
-            currentDayInterventions: currentInterventions,
-            wakeTime: profile.wakeTime,
-            sleepTime: profile.sleepTime,
-            hydrationDeficitMl: 0,
-            hoursUntilBedtime: hoursUntilBedtime,
-            tolerance: ToleranceCycle(daysSinceReset: profile.toleranceDaysSinceReset, resetDaysRequired: profile.toleranceResetDaysRequired),
-            biometrics: appState.todayBiometrics
-        )
-
-        return recommendations.min { $0.priority < $1.priority }
     }
 
     var body: some View {
@@ -152,7 +84,7 @@ private var compositeSupplements: [NootropicCompound] {
                         oracleBanner
                             .frame(maxWidth: .infinity)
 
-                        biometricHUD
+                        caffeineHUD
                     }
                     heroSection
                 }
@@ -172,9 +104,6 @@ private var compositeSupplements: [NootropicCompound] {
             }
         }
         .onChange(of: appState.doses) { _, _ in
-            updateCaffeineLevel()
-        }
-        .onChange(of: appState.supplementLogs) { _, _ in
             updateCaffeineLevel()
         }
         .onChange(of: appState.profile) { _, _ in
@@ -221,35 +150,27 @@ private var compositeSupplements: [NootropicCompound] {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color.yellow.opacity(0.15))
                 )
-            } else if let recommendation = topRecommendation {
+            } else {
                 HStack(spacing: 12) {
-                    Image(systemName: iconForRecommendationType(recommendation.type))
+                    Image(systemName: bedtimeStatusIcon)
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(iconColorForType(recommendation.type))
+                        .foregroundStyle(bedtimeStatusColor)
                         .frame(width: 40, height: 40)
-                        .background(iconColorForType(recommendation.type).opacity(0.2))
+                        .background(bedtimeStatusColor.opacity(0.2))
                         .clipShape(.circle)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(recommendation.title)
+                        Text(bedtimeStatusTitle)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.primary)
 
-                        Text(recommendation.message)
+                        Text("\(Int(caffeineAtBedtime))mg projected at bedtime (limit \(Int(safeLimit))mg)")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
 
                     Spacer()
-
-                    Text("P\(recommendation.priority)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(iconColorForType(recommendation.type))
-                        .clipShape(.rect(cornerRadius: 4))
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity)
@@ -257,93 +178,53 @@ private var compositeSupplements: [NootropicCompound] {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
                 )
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text("All systems optimal")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.green.opacity(0.1))
-                )
             }
         }
     }
 
-    // MARK: - Biometric HUD
+    // MARK: - Caffeine HUD
 
-    private var biometricHUD: some View {
+    private var caffeineHUD: some View {
         let largeSize: CGFloat = 80
 
         return LazyVGrid(columns: [
             GridItem(.fixed(largeSize)),
             GridItem(.fixed(largeSize))
         ], spacing: 12) {
-            SleepGaugeView(score: appState.todayBiometrics?.sleepScore)
-                .frame(width: largeSize, height: largeSize)
-
-            BiometricWidget(
-                title: "HRV",
-                value: appState.todayBiometrics?.heartRateVariability.map { "\(Int($0))ms" } ?? "--",
-                icon: "heart.fill",
-                color: .red
-            )
-            .frame(width: largeSize, height: largeSize)
-
-            MetabolicWidget(interventions: appState.todayInterventions)
-                .frame(width: largeSize, height: largeSize)
-
             CaffeineMeterView(
                 level: currentCaffeine,
                 safeLimit: safeLimit
             )
             .frame(width: largeSize, height: largeSize)
+
+            CaffeineStatWidget(
+                title: "BEDTIME",
+                value: "\(Int(caffeineAtBedtime))mg",
+                icon: "moon.fill",
+                color: bedtimeStatusColor
+            )
+            .frame(width: largeSize, height: largeSize)
         }
     }
 
-    private func iconForRecommendationType(_ type: ActionableRecommendation.RecommendationType) -> String {
-        switch type {
-        case .hydrate: return "drop.fill"
-        case .takeCompound: return "pill.fill"
-        case .replaceCompound: return "arrow.triangle.2.circlepath"
-        case .avoidCompound: return "exclamationmark.triangle.fill"
-        case .caffeineCutoff: return "cup.and.saucer.fill"
-        case .sleepPrep: return "moon.fill"
-        case .exercise: return "figure.run"
-        }
+    private var bedtimeStatusTitle: String {
+        caffeineAtBedtime <= safeLimit * 0.5 ? "Sleep ready" : (caffeineAtBedtime <= safeLimit ? "Monitor intake" : "Over bedtime limit")
     }
 
-    private func iconColorForType(_ type: ActionableRecommendation.RecommendationType) -> Color {
-        switch type {
-        case .hydrate: return .blue
-        case .takeCompound: return .green
-        case .replaceCompound: return .purple
-        case .avoidCompound: return .red
-        case .caffeineCutoff: return .orange
-        case .sleepPrep: return .purple
-        case .exercise: return .cyan
-        }
+    private var bedtimeStatusIcon: String {
+        caffeineAtBedtime <= safeLimit * 0.5 ? "moon.fill" : (caffeineAtBedtime <= safeLimit ? "exclamationmark.triangle" : "moon.zzz.fill")
     }
 
-    private var sleepScoreColor: Color {
-        guard let score = appState.todayBiometrics?.sleepScore else { return .gray }
-        if score >= 85 { return .green }
-        if score >= 70 { return .yellow }
-        return .red
+    private var bedtimeStatusColor: Color {
+        caffeineAtBedtime <= safeLimit * 0.5 ? .green : (caffeineAtBedtime <= safeLimit ? .yellow : .red)
     }
 
     // MARK: - Hero Section (Chart)
 
     private var heroSection: some View {
         VStack(spacing: 8) {
-            UnifiedNootropicChart(
+            CaffeineTimelineChart(
                 doses: compositeDoses,
-                supplements: compositeSupplements,
                 wakeTime: appState.profile?.wakeTime ?? Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!,
                 sleepTime: appState.profile?.sleepTime ?? Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!,
                 safeLimit: safeLimit
@@ -370,9 +251,9 @@ private var compositeSupplements: [NootropicCompound] {
     }
 }
 
-// MARK: - Biometric Widget
+// MARK: - Stat Widget
 
-struct BiometricWidget: View {
+struct CaffeineStatWidget: View {
     let title: String
     let value: String
     let icon: String

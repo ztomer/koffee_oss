@@ -20,8 +20,9 @@ extension DataModelFlowTests {
             compoundName: "AtomicTest",
             scheduledTime: Date(),
             status: .pending,
-            dayKey: dayKey,
-            compoundUuid: "supplement",
+                dayKey: dayKey,
+                compoundUuid: "caffeine",
+                doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -36,7 +37,7 @@ extension DataModelFlowTests {
         // Start: pending, no history
         let item0 = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(item0?.status, .pending)
-        var history0 = try supplementRepo.logsForDate(Date())
+        var history0 = try doseRepo.dosesForDate(Date())
         XCTAssertFalse(history0.contains { $0.id == itemId })
 
         // Approve: creates history AND updates status
@@ -55,7 +56,7 @@ extension DataModelFlowTests {
         // After approve: status=approved AND history exists (both updated)
         let item1 = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(item1?.status, .taken)
-        var history1 = try supplementRepo.logsForDate(Date())
+        var history1 = try doseRepo.dosesForDate(Date())
         XCTAssertTrue(history1.contains { $0.id == itemId }, "History should exist after approve")
 
         // Skip: deletes history AND updates status
@@ -74,7 +75,7 @@ extension DataModelFlowTests {
         // After skip: status=skipped AND history deleted
         let item2 = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(item2?.status, .skipped)
-        var history2 = try supplementRepo.logsForDate(Date())
+        var history2 = try doseRepo.dosesForDate(Date())
         XCTAssertFalse(history2.contains { $0.id == itemId }, "History should be deleted after skip")
 
         // Verify: Both state changes happened atomically together
@@ -102,7 +103,8 @@ extension DataModelFlowTests {
                 scheduledTime: Date(),
                 status: .pending,
                 dayKey: dayKey,
-                compoundUuid: "supplement",
+                compoundUuid: "caffeine",
+            doseMg: 95,
             )
 
             do {
@@ -142,7 +144,8 @@ extension DataModelFlowTests {
                 scheduledTime: Date(),
                 status: .pending,
                 dayKey: dayKey,
-                compoundUuid: "supplement",
+                compoundUuid: "caffeine",
+            doseMg: 95,
             )
             try planRepo.save(item)
         }
@@ -154,7 +157,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: otherDayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(otherItem)
 

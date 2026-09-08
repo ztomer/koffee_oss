@@ -21,7 +21,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -44,14 +45,14 @@ extension DataModelFlowTests {
         c2.cancel()
 
         // Verify both exist
-        let historyBefore = try supplementRepo.logsForDate(Date())
+        let historyBefore = try doseRepo.dosesForDate(Date())
         XCTAssertTrue(historyBefore.contains { $0.id == itemId })
 
         // Delete plan item (not skip - this creates orphan)
         try planRepo.delete(id: itemId)
 
         // History should still exist (orphan)
-        let historyAfter = try supplementRepo.logsForDate(Date())
+        let historyAfter = try doseRepo.dosesForDate(Date())
         XCTAssertTrue(historyAfter.contains { $0.id == itemId }, "Orphaned history should persist")
     }
 
@@ -68,7 +69,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .taken,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -84,7 +86,7 @@ extension DataModelFlowTests {
         let planItem = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(planItem?.status, .taken)
 
-        let history = try supplementRepo.logsForDate(Date())
+        let history = try doseRepo.dosesForDate(Date())
         XCTAssertFalse(history.contains { $0.id == itemId }, "No history for manual approved item")
     }
 
@@ -104,7 +106,8 @@ extension DataModelFlowTests {
             scheduledTime: today, // Exactly midnight
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -134,7 +137,7 @@ extension DataModelFlowTests {
         c2.cancel()
 
         // History should be created
-        let history = try supplementRepo.logsForDate(today)
+        let history = try doseRepo.dosesForDate(today)
         XCTAssertTrue(history.contains { $0.id == "MIDNIGHT-\(dayKey)" })
     }
 
@@ -162,7 +165,8 @@ extension DataModelFlowTests {
             scheduledTime: dec31,
             status: .pending,
             dayKey: dec31Key,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(dec31Item)
 
@@ -182,7 +186,8 @@ extension DataModelFlowTests {
             scheduledTime: jan1,
             status: .pending,
             dayKey: jan1Key,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(jan1Item)
 

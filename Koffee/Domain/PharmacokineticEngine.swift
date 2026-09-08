@@ -123,7 +123,9 @@ final class PharmacokineticEngine: MetabolismEngineProtocol {
         return totalConcentration * vd
     }
 
-    /// Calculates caffeine level with dynamic Vmax based on exercise interventions
+    /// Calculates caffeine level. The interventions overload is kept for API
+    /// compatibility; only beverage (caffeine) interventions are produced,
+    /// so this converges to the same Michaelis-Menten decay as the base path.
     func calculateLevel(at time: Date,
                         for doses: [(time: Date, mg: Double, delivery: DeliveryMethod)],
                         interventions: [BiologicalIntervention] = []) -> Double {
@@ -146,16 +148,14 @@ final class PharmacokineticEngine: MetabolismEngineProtocol {
                 let absorbedDose = dose.mg * dose.delivery.absorptionRate * min(riseProgress, 1.0)
                 totalConcentration += absorbedDose / vd
             } else {
-                // Post-absorption: iterative Michaelis-Menten decay with dynamic Vmax
+                // Post-absorption: iterative Michaelis-Menten decay
                 let timeSincePeak = hoursElapsed - effectivePeakHours
                 let doseConcentration = (dose.mg * dose.delivery.absorptionRate) / vd
 
-                let decayedConcentration = iterativeDecayWithExercise(
+                let decayedConcentration = iterativeDecay(
                     initialConcentration: doseConcentration,
                     timeHours: timeSincePeak,
-                    stepMinutes: stepMinutes,
-                    doseTime: dose.time,
-                    interventions: interventions
+                    stepMinutes: stepMinutes
                 )
 
                 totalConcentration += decayedConcentration
@@ -164,52 +164,6 @@ final class PharmacokineticEngine: MetabolismEngineProtocol {
 
         // Convert back to mg from concentration
         return totalConcentration * vd
-    }
-
-    /// Iterative Michaelis-Menten decay with dynamic Vmax based on exercise interventions
-    private func iterativeDecayWithExercise(
-        initialConcentration: Double,
-        timeHours: Double,
-        stepMinutes: Double,
-        doseTime: Date,
-        interventions: [BiologicalIntervention]
-    ) -> Double {
-        var concentration = initialConcentration
-        let baseVmax = maxEliminationRateVmax / metabolism.halfLifeMultiplier
-        let stepHours = stepMinutes / 60.0
-        let steps = Int(timeHours / stepHours)
-
-        for stepIndex in 0..<steps {
-            let currentStepTime = doseTime.addingTimeInterval(Double(stepIndex) * stepMinutes * 60)
-
-            // Calculate current Vmax based on exercise interventions
-            var currentVmax = baseVmax
-
-            // Find any exercise interventions active at this time
-            for intervention in interventions where intervention.type == .exercise {
-                let exerciseStart = intervention.scheduledTime
-                let exerciseEnd = exerciseStart.addingTimeInterval(Double(intervention.durationMinutes ?? 30) * 60)
-
-                if currentStepTime >= exerciseStart && currentStepTime < exerciseEnd {
-                    // Apply exercise-based Vmax modification
-                    if intervention.maintainsHepaticPerfusion {
-                        // Zone 2, walking, yoga - increases circulation
-                        currentVmax *= 1.15
-                    } else {
-                        // HIIT, heavy lifting - blood shunted to muscles, reduces clearance
-                        currentVmax *= 0.2
-                    }
-                    break // Only one exercise can be active at a time
-                }
-            }
-
-            // Michaelis-Menten: rate = (Vmax * C) / (Km + C)
-            let rate = (currentVmax * concentration) / (michaelisConstantKm + concentration)
-            let change = rate * stepHours
-            concentration = max(0, concentration - change)
-        }
-
-        return concentration
     }
 
     /// Iterative Michaelis-Menten decay calculation

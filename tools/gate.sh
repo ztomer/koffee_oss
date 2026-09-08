@@ -16,11 +16,7 @@ case "${1:-}" in
     #   Lint debt cleared 2026-08 - swiftlint --strict is green.
     #   Coverage floor not set yet (GOH_SWIFT_COV_MIN in .gatesrc).
     "$GOH/gates/swift_gate.sh" .
-    #
-    # py: koffee_etl/ has ruff-clean sources but NO pytest suite. py_gate
-    #   runs `pytest -q`, which fails on a zero-test run, so the layer is
-    #   wired only when a real test suite lands. Ruff debt itself is fixed.
-    #   To wire later: add tests, then uncomment:
-    #   "$GOH/gates/py_gate.sh"    koffee_etl
+    # No Python layers: koffee_etl/ (USDA nutrition + Wger exercise pipeline)
+    # was removed 2026-09 - non-coffee feature strip.
     ;;
 esac

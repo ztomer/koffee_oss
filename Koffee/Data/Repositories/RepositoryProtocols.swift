@@ -34,23 +34,3 @@ protocol BeverageRepositoryProtocol: AnyObject, ObservableObject {
     func seed(_ beverages: [BeverageModel]) throws
     func deleteAll() throws
 }
-
-protocol SupplementLogRepositoryProtocol: AnyObject, ObservableObject {
-    var logs: [SupplementLogModel] { get }
-    func add(compoundName: String, status: PlanItemStatus) throws
-    func logsForDate(_ date: Date) throws -> [SupplementLogModel]
-}
-
-protocol HydrationRepositoryProtocol: AnyObject, ObservableObject {
-    var entries: [HydrationEntryModel] { get }
-    func add(amountMl: Double) throws
-    func entriesForDate(_ date: Date) throws -> [HydrationEntryModel]
-    func delete(_ entry: HydrationEntryModel) throws
-}
-
-protocol ExerciseRepositoryProtocol: AnyObject, ObservableObject {
-    var logs: [ExerciseLogModel] { get }
-    func add(activityName: String, durationMinutes: Int?) throws
-    func logsForDate(_ date: Date) throws -> [ExerciseLogModel]
-    func delete(_ log: ExerciseLogModel) throws
-}

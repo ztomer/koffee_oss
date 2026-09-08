@@ -11,7 +11,6 @@ struct SettingsView: View {
     @State private var selectedMetabolism: MetabolismRate = .medium
     @State private var wakeTime: Date = Date()
     @State private var sleepTime: Date = Date()
-    @State private var selectedGoal: OptimizationGoal = .balanced
 
     @State private var editingWeight: Bool = false
     @State private var editingHeight: Bool = false
@@ -45,9 +44,6 @@ struct SettingsView: View {
         selectedMetabolism = MetabolismRate(swiftDataValue: profile.metabolismRate) ?? .medium
         wakeTime = profile.wakeTime
         sleepTime = profile.sleepTime
-        if let goal = OptimizationGoal(rawValue: profile.optimizationGoal) {
-            selectedGoal = goal
-        }
         if profile.age > 0 {
             birthdate = Calendar.current.date(byAdding: .year, value: -profile.age, to: Date()) ?? Date()
         }
@@ -172,32 +168,6 @@ struct SettingsView: View {
                             ) {
                                 selectedSensitivity = sens
                                 saveProfile { $0.sensitivity = sens.swiftDataValue }
-                            }
-                        }
-                    }
-                }
-
-                Divider()
-                    .background(Color(nsColor: .separatorColor))
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("OPTIMIZATION GOAL")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 6) {
-                        ForEach(OptimizationGoal.allCases) { goal in
-                            let isSelected = selectedGoal == goal
-                            let color: Color = goal == .deepSleep ? .purple : .blue
-                            SkillPill(
-                                title: goal.rawValue,
-                                isSelected: isSelected,
-                                color: color
-                            ) {
-                                selectedGoal = goal
-                                saveProfile { profile in
-                                    profile.optimizationGoal = goal.rawValue
-                                }
                             }
                         }
                     }
@@ -369,7 +339,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("AUTO-REFRESH PLAN")
                         .font(.system(size: 11, weight: .semibold))
-                    Text("Update daily plan when stack changes")
+                    Text("Update daily caffeine plan when profile changes")
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                 }

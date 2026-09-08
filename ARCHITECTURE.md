@@ -40,29 +40,25 @@ Koffee/
 │   └── BeverageManager.swift        # Beverage loading
 ├── Domain/
 │   ├── PharmacokineticEngine.swift    # Michaelis-Menten kinetics
-│   ├── StackOptimizerEngine.swift   # Stack optimization
-│   └── HydrationCalculator.swift   # Hydration tracking
+│   └── BiologicalIntervention.swift   # Caffeine timeline events
 ├── Services/
-│   ├── NotificationManager.swift
+│   ├── NotificationManager.swift   # Caffeine cutoff + morning reminders
 │   └── MenuBarManager.swift
 ├── UI/
 │   ├── Core/MainSplitView.swift, Design.swift
 │   ├── Views/*.swift
-│   └── ChartsViews.swift
-└── beverages.json                  # Beverage catalog
+│   └── UnifiedChartView.swift   # Caffeine timeline chart
+└── beverages.json                  # Beverage catalog (caffeine sources only)
 ```
 
 ## Database Tables
 
 | Table | Purpose |
 |-------|---------|
-| `user_profile` | Weight, sensitivity, wake/sleep times, stack compounds |
+| `user_profile` | Weight, sensitivity, wake/sleep times, caffeine stack membership |
 | `beverages` | Beverage catalog |
 | `doses` | Logged caffeine doses |
-| `supplement_logs` | Supplement logs |
-| `hydration_entries` | Water intake |
-| `exercise_logs` | Exercise logs |
-| `daily_plan_items` | Daily plan items |
+| `daily_plan_items` | Caffeine schedule items |
 
 ## Key Types
 
@@ -72,7 +68,7 @@ Koffee/
 | `BeverageModel` | Data | GRDB record for beverages |
 | `AppState` | Data | ObservableObject coordinator |
 | `Dose` | Domain | In-memory caffeine dose with compound + isPlanItem |
-| `NootropicCompound` | Domain | Stack compounds enum |
+| `NootropicCompound` | Domain | Caffeine-only compound enum (PK constants, timing, color) |
 | `CaffeineCalculator` | Domain | Caffeine calculations |
 
 ## MVC Compliance

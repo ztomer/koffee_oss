@@ -1,21 +1,5 @@
 import Foundation
 
-// MARK: - Actionable Intervention Protocol
-
-protocol ActionableIntervention: Identifiable {
-    var id: String { get }
-    var name: String { get }
-    var interventionType: InterventionType { get }
-    var optimalTimingMinutes: Double { get }
-    var explanation: String { get }
-    var icon: String { get }
-    var isCompleted: Bool { get set }
-}
-
-// MARK: - Physical Activity Enum
-
-// MARK: - Delivery Method
-
 // MARK: - Caffeine Protocol
 
 struct CaffeineProtocol {
@@ -144,11 +128,9 @@ func calculateOptimalFocusWindow(
 
 func generateUnifiedCurvePoints(
     doses: [(Date, Double)],
-    supplements: [NootropicCompound],
     from startTime: Date,
     to endTime: Date,
-    metabolism: MetabolismRate = .medium,
-    interactions: [(extensionHours: Double, description: String)] = []
+    metabolism: MetabolismRate = .medium
 ) -> [UnifiedCurvePoint] {
     debugLog("generateUnifiedCurvePoints: \(doses.count) doses, start=\(startTime), end=\(endTime)")
     for (t, m) in doses {
@@ -165,27 +147,12 @@ func generateUnifiedCurvePoints(
     debugLog("  caffeine for calc: \(caffeineDoses.count)/\(doses.count)")
 
     while currentTime <= endTime {
-        var compoundLevels: [String: Double] = [:]
-
-        let caffeineLevel = calculateCaffeineLevel(doses: caffeineDoses, at: currentTime, metabolism: metabolism, interactions: interactions)
-        compoundLevels["Caffeine"] = caffeineLevel
-
-        for supplement in supplements where supplement != .caffeine {
-            // Stack supplements are anchored at their recommended timing
-            // relative to wake time (e.g. L-Theanine -45min, Magnesium +60min)
-            // and dosed at their optimalDoseMg. They are NOT inferred from the
-            // caffeine dose tuples - that mg-range heuristic always produced 0.
-            let doseTime = startTime.addingTimeInterval(supplement.recommendedTimingMinutes * 60.0)
-            let level = compoundPKLevel(compound: supplement, doseTime: doseTime, at: currentTime)
-            compoundLevels[supplement.rawValue] = level
-        }
-
-        let totalLevel = compoundLevels.values.reduce(0, +)
+        let caffeineLevel = calculateCaffeineLevel(doses: caffeineDoses, at: currentTime, metabolism: metabolism)
 
         points.append(UnifiedCurvePoint(
             time: currentTime,
-            compoundLevels: compoundLevels,
-            totalLevel: totalLevel
+            compoundLevels: ["Caffeine": caffeineLevel],
+            totalLevel: caffeineLevel
         ))
 
         currentTime = currentTime.addingTimeInterval(1800)
@@ -193,74 +160,6 @@ func generateUnifiedCurvePoints(
 
     return points
 }
-
-/// Rise-and-decay PK level for a single compound dose: linear rise to peak
-/// (peakTimeMinutes), then exponential decay by the compound half-life.
-private func compoundPKLevel(compound: NootropicCompound, doseTime: Date, at targetTime: Date) -> Double {
-    guard doseTime <= targetTime else { return 0 }
-
-    let hoursFromDose = targetTime.timeIntervalSince(doseTime) / 3600.0
-    let peakHours = compound.peakTimeMinutes / 60.0
-
-    if hoursFromDose < peakHours {
-        return compound.optimalDoseMg * (hoursFromDose / peakHours)
-    }
-    let decayHours = hoursFromDose - peakHours
-    return compound.optimalDoseMg * pow(0.5, decayHours / compound.halfLifeHours)
-}
-
-func calculateCompoundLevel(
-    compound: NootropicCompound,
-    doses: [(Date, Double)],
-    at targetTime: Date,
-    metabolism: MetabolismRate = .medium,
-    referenceTime: Date? = nil,
-    wakeTime: Date
-) -> Double {
-    // Match doses to this compound by typical dose ranges (temporary fix)
-    let matchedDoses = doses.filter { _, mg in
-        switch compound {
-        case .caffeine: return mg >= 50 && mg <= 150
-        case .lTheanine: return mg >= 100 && mg <= 400
-        case .magnesium: return mg >= 500 && mg <= 3000
-        case .creatine: return mg >= 1000 && mg <= 10000
-        case .ashwagandha: return mg >= 300 && mg <= 1000
-        case .rhodiola: return mg >= 100 && mg <= 500
-        case .theacrine: return mg >= 50 && mg <= 200
-        case .alphaGPC: return mg >= 100 && mg <= 500
-        case .lTyrosine: return mg >= 500 && mg <= 2000
-        default: return false
-        }
-    }
-
-    if matchedDoses.isEmpty {
-        return 0
-    }
-
-    var total: Double = 0.0
-    let halfLife = compound.halfLifeHours
-    let peakOffsetSeconds: TimeInterval = compound.peakTimeMinutes * 60.0
-
-    for (doseTime, _) in matchedDoses {
-            guard doseTime <= targetTime else { continue }
-
-            let hoursFromDose = targetTime.timeIntervalSince(doseTime) / 3600.0
-            let peakTime = doseTime.addingTimeInterval(peakOffsetSeconds)
-
-            if targetTime < peakTime {
-                let riseProgress = hoursFromDose / (peakOffsetSeconds / 3600.0)
-                let riseLevel = compound.optimalDoseMg * min(riseProgress, 1.0)
-                total += riseLevel
-            } else {
-                let decayTime = targetTime.timeIntervalSince(peakTime) / 3600.0
-                let peakLevel = compound.optimalDoseMg
-                let remaining = peakLevel * pow(0.5, decayTime / halfLife)
-                total += remaining
-            }
-        }
-
-        return total
-    }
 
 // MARK: - Caffeine Calculator Core
 

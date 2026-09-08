@@ -80,7 +80,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -103,7 +104,7 @@ extension DataModelFlowTests {
         wait(for: [approveExp], timeout: 2.0)
         c2.cancel()
 
-        var history = try supplementRepo.logsForDate(Date())
+        var history = try doseRepo.dosesForDate(Date())
         XCTAssertTrue(history.contains { $0.id == itemId }, "Should have history after approve")
 
         // 2. Skip
@@ -117,7 +118,7 @@ extension DataModelFlowTests {
         wait(for: [skipExp], timeout: 2.0)
         c3.cancel()
 
-        history = try supplementRepo.logsForDate(Date())
+        history = try doseRepo.dosesForDate(Date())
         XCTAssertFalse(history.contains { $0.id == itemId }, "History should be deleted after skip")
 
         // 3. Approve again
@@ -135,7 +136,7 @@ extension DataModelFlowTests {
         let planItem = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(planItem?.status, .taken)
 
-        history = try supplementRepo.logsForDate(Date())
+        history = try doseRepo.dosesForDate(Date())
         XCTAssertTrue(history.contains { $0.id == itemId }, "History should exist after re-approve")
     }
 
@@ -151,7 +152,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -192,7 +194,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 

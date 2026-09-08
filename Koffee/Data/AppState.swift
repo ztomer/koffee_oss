@@ -17,52 +17,28 @@ enum AppError: Error, LocalizedError {
 struct DailySummary: Equatable {
     let date: Date
     let totalCaffeineMg: Double
-    let totalHydrationMl: Double
-    let supplementCount: Int
-    let exerciseCount: Int
     let doseCount: Int
 }
 
 final class QueryService {
     private let doseRepo: DoseRepository
-    private let hydrationRepo: HydrationRepository
-    private let supplementRepo: SupplementLogRepository
-    private let exerciseRepo: ExerciseRepository
 
-    init(
-        doseRepo: DoseRepository,
-        hydrationRepo: HydrationRepository,
-        supplementRepo: SupplementLogRepository,
-        exerciseRepo: ExerciseRepository
-    ) {
+    init(doseRepo: DoseRepository) {
         self.doseRepo = doseRepo
-        self.hydrationRepo = hydrationRepo
-        self.supplementRepo = supplementRepo
-        self.exerciseRepo = exerciseRepo
     }
 
     func summaryForDate(_ date: Date) -> DailySummary {
         let doses = (try? doseRepo.dosesForDate(date)) ?? []
-        let hydration = (try? hydrationRepo.entriesForDate(date)) ?? []
-        let supplements = (try? supplementRepo.logsForDate(date)) ?? []
-        let exercises = (try? exerciseRepo.logsForDate(date)) ?? []
 
         return DailySummary(
             date: date,
             totalCaffeineMg: sumCaffeine(doses),
-            totalHydrationMl: sumHydration(hydration),
-            supplementCount: supplements.count,
-            exerciseCount: exercises.count,
             doseCount: doses.count
         )
     }
 
     func totalCaffeineForDay(_ date: Date) -> Double {
         (try? doseRepo.dosesForDate(date)).map { sumCaffeine($0) } ?? 0
-    }
-
-    func totalHydrationForDay(_ date: Date) -> Double {
-        (try? hydrationRepo.entriesForDate(date)).map { sumHydration($0) } ?? 0
     }
 
     func caffeineCurveForDay(_ date: Date) -> [(time: Date, cumulativeMg: Double)] {
@@ -83,15 +59,10 @@ final class AppState: ObservableObject {
     @Published private(set) var profile: UserProfileModel?
     @Published private(set) var doses: [DoseModel] = []
     @Published private(set) var beverages: [BeverageModel] = []
-    @Published private(set) var supplementLogs: [SupplementLogModel] = []
-    @Published private(set) var hydrationEntries: [HydrationEntryModel] = []
-    @Published private(set) var exerciseLogs: [ExerciseLogModel] = []
     @Published private(set) var dailyPlanItems: [DailyPlanItemModel] = []
 
     @Published private(set) var todaySummary: DailySummary
     @Published private(set) var todayCaffeineTotal: Double
-    @Published private(set) var todayHydrationTotal: Double
-    @Published private(set) var todayBiometrics: DailyBiometricsModel?
     @Published private(set) var toleranceAlert: ToleranceAlert?
 
     // Single source of truth for active caffeine level (pharmacokinetic-based)
@@ -185,99 +156,32 @@ final class AppState: ObservableObject {
     let profileRepo: UserProfileRepository
     let doseRepo: DoseRepository
     let beverageRepo: BeverageRepository
-    let supplementRepo: SupplementLogRepository
-    let hydrationRepo: HydrationRepository
-    let exerciseRepo: ExerciseRepository
     let planRepo: DailyPlanRepository
-    let biometricRepo: BiometricRepository
     let queryService: QueryService
     private var cancellables = Set<AnyCancellable>()
 
     var todayDoses: [DoseModel] { (try? doseRepo.dosesForDate(Date())) ?? [] }
-    var todayHydration: [HydrationEntryModel] { (try? hydrationRepo.entriesForDate(Date())) ?? [] }
-    var todaySupplements: [SupplementLogModel] { (try? supplementRepo.logsForDate(Date())) ?? [] }
-    var todayExercises: [ExerciseLogModel] { (try? exerciseRepo.logsForDate(Date())) ?? [] }
     var todayPlanItems: [DailyPlanItemModel] { planRepo.items }
 
     init(
         profileRepo: UserProfileRepository,
         doseRepo: DoseRepository,
         beverageRepo: BeverageRepository,
-        supplementRepo: SupplementLogRepository,
-        hydrationRepo: HydrationRepository,
-        exerciseRepo: ExerciseRepository,
         planRepo: DailyPlanRepository
     ) {
         self.profileRepo = profileRepo
         self.doseRepo = doseRepo
         self.beverageRepo = beverageRepo
-        self.supplementRepo = supplementRepo
-        self.hydrationRepo = hydrationRepo
-        self.exerciseRepo = exerciseRepo
         self.planRepo = planRepo
-        self.biometricRepo = BiometricRepository(db: DatabaseManager.shared.queue())
-        self.queryService = QueryService(
-            doseRepo: doseRepo,
-            hydrationRepo: hydrationRepo,
-            supplementRepo: supplementRepo,
-            exerciseRepo: exerciseRepo
-        )
+        self.queryService = QueryService(doseRepo: doseRepo)
 
         self.profile = profileRepo.profile
         self.doses = doseRepo.doses
         self.beverages = beverageRepo.beverages
-        self.supplementLogs = supplementRepo.logs
-        self.hydrationEntries = hydrationRepo.entries
-        self.exerciseLogs = exerciseRepo.logs
         debugLog("AppState.init: planRepo.items = \(planRepo.items.count)")
         self.dailyPlanItems = planRepo.items
         self.todaySummary = queryService.summaryForDate(Date())
         self.todayCaffeineTotal = queryService.totalCaffeineForDay(Date())
-        self.todayHydrationTotal = queryService.totalHydrationForDay(Date())
-
-        startObserving()
-    }
-
-    init(
-        profileRepo: UserProfileRepository,
-        doseRepo: DoseRepository,
-        beverageRepo: BeverageRepository,
-        supplementRepo: SupplementLogRepository,
-        hydrationRepo: HydrationRepository,
-        exerciseRepo: ExerciseRepository,
-        planRepo: DailyPlanRepository,
-        biometricRepo: BiometricRepository
-    ) {
-        self.profileRepo = profileRepo
-        self.doseRepo = doseRepo
-        self.beverageRepo = beverageRepo
-        self.supplementRepo = supplementRepo
-        self.hydrationRepo = hydrationRepo
-        self.exerciseRepo = exerciseRepo
-        self.planRepo = planRepo
-        self.biometricRepo = biometricRepo
-        self.queryService = QueryService(
-            doseRepo: doseRepo,
-            hydrationRepo: hydrationRepo,
-            supplementRepo: supplementRepo,
-            exerciseRepo: exerciseRepo
-        )
-
-        self.profile = profileRepo.profile
-        self.doses = doseRepo.doses
-        self.beverages = beverageRepo.beverages
-        self.supplementLogs = supplementRepo.logs
-        self.hydrationEntries = hydrationRepo.entries
-        self.exerciseLogs = exerciseRepo.logs
-        self.dailyPlanItems = planRepo.items
-        self.todaySummary = queryService.summaryForDate(Date())
-        self.todayCaffeineTotal = queryService.totalCaffeineForDay(Date())
-        self.todayHydrationTotal = queryService.totalHydrationForDay(Date())
-        self.todayBiometrics = biometricRepo.biometrics
-        self.dailyPlanItems = planRepo.items
-        self.todaySummary = queryService.summaryForDate(Date())
-        self.todayCaffeineTotal = queryService.totalCaffeineForDay(Date())
-        self.todayHydrationTotal = queryService.totalHydrationForDay(Date())
 
         startObserving()
     }
@@ -310,31 +214,6 @@ final class AppState: ObservableObject {
             }
             .store(in: &cancellables)
 
-        supplementRepo.$logs
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] logs in
-                self?.supplementLogs = logs
-                self?.todaySummary = self?.queryService.summaryForDate(Date()) ?? Self.emptySummary
-            }
-            .store(in: &cancellables)
-
-        hydrationRepo.$entries
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] entries in
-                self?.hydrationEntries = entries
-                self?.todaySummary = self?.queryService.summaryForDate(Date()) ?? Self.emptySummary
-                self?.todayHydrationTotal = self?.queryService.totalHydrationForDay(Date()) ?? 0
-            }
-            .store(in: &cancellables)
-
-        exerciseRepo.$logs
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] logs in
-                self?.exerciseLogs = logs
-                self?.todaySummary = self?.queryService.summaryForDate(Date()) ?? Self.emptySummary
-            }
-            .store(in: &cancellables)
-
         planRepo.$items
             .receive(on: DispatchQueue.main)
             .sink { [weak self] items in
@@ -342,17 +221,9 @@ final class AppState: ObservableObject {
                 self?.dailyPlanItems = items
             }
             .store(in: &cancellables)
-
-        biometricRepo.$biometrics
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] biometrics in
-                self?.todayBiometrics = biometrics
-            }
-            .store(in: &cancellables)
     }
 
     /// Fallback summary when the query service is unavailable mid-teardown.
     static let emptySummary = DailySummary(
-        date: Date(), totalCaffeineMg: 0, totalHydrationMl: 0,
-        supplementCount: 0, exerciseCount: 0, doseCount: 0)
+        date: Date(), totalCaffeineMg: 0, doseCount: 0)
 }

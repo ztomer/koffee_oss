@@ -53,7 +53,7 @@ struct NotificationsView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Enable Reminders")
                             .font(.system(size: 14, weight: .semibold))
-                        Text("Get notified when to take your stack")
+                        Text("Get notified about caffeine cutoff and tolerance")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -113,12 +113,13 @@ struct NotificationsView: View {
     }
 
     private var reminderList: some View {
-        VStack(spacing: 8) {
-            ForEach(appState.todayRecommendations) { recommendation in
-                reminderRow(for: recommendation)
+        let pendingCaffeine = appState.pendingPlanItemsTodayByCompound("caffeine")
+        return VStack(spacing: 8) {
+            ForEach(pendingCaffeine) { item in
+                reminderRow(title: "\(item.compoundName) \(Int(item.doseMg))mg", time: item.scheduledTime)
             }
 
-            if appState.todayRecommendations.isEmpty {
+            if pendingCaffeine.isEmpty {
                 Text("No upcoming reminders")
                     .font(.system(size: 14))
                     .foregroundStyle(.secondary)
@@ -128,29 +129,21 @@ struct NotificationsView: View {
         }
     }
 
-    private func reminderRow(for recommendation: ActionableRecommendation) -> some View {
+    private func reminderRow(title: String, time: Date) -> some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(iconColor(for: recommendation.type))
+                .fill(.orange)
                 .frame(width: 10, height: 10)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(recommendation.title)
+                Text(title)
                     .font(.system(size: 14, weight: .medium))
-                Text(formatTime(recommendation.scheduledTime))
+                Text(formatTime(time))
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
-
-            Text("P\(recommendation.priority)")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(iconColor(for: recommendation.type))
-                .clipShape(.rect(cornerRadius: 4))
         }
         .padding(12)
         .background(
@@ -170,20 +163,7 @@ struct NotificationsView: View {
         }
     }
 
-    private func iconColor(for type: ActionableRecommendation.RecommendationType) -> Color {
-        switch type {
-        case .caffeineCutoff: return .orange
-        case .takeCompound: return .blue
-        case .hydrate: return .cyan
-        case .sleepPrep: return .purple
-        case .exercise: return .green
-        case .replaceCompound: return .yellow
-        case .avoidCompound: return .red
-        }
-    }
-
-    private func formatTime(_ date: Date?) -> String {
-        guard let date = date else { return "—" }
+    private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)

@@ -12,8 +12,6 @@ final class DataModelFlowTests: XCTestCase {
     var testDB: TestDatabase!
     var appState: AppState! { testDB.appState }
     var doseRepo: DoseRepository! { testDB.doseRepo }
-    var supplementRepo: SupplementLogRepository! { testDB.supplementRepo }
-    var hydrationRepo: HydrationRepository! { testDB.hydrationRepo }
     var planRepo: DailyPlanRepository! { testDB.planRepo }
 
     override func setUp() async throws {
@@ -136,11 +134,12 @@ final class DataModelFlowTests: XCTestCase {
         // Create a plan item
         let planItem = DailyPlanItemModel(
             id: planItemId,
-            compoundName: "TestCompound",
+            compoundName: "Caffeine",
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95
         )
         try planRepo.save(planItem)
 
@@ -168,8 +167,8 @@ final class DataModelFlowTests: XCTestCase {
         c2.cancel()
 
         // Verify history was created with same UUID
-        var historyLogs = try supplementRepo.logsForDate(Date())
-        XCTAssertTrue(historyLogs.contains { $0.id == planItemId })
+        var historyDoses = try doseRepo.dosesForDate(Date())
+        XCTAssertTrue(historyDoses.contains { $0.id == planItemId })
 
         // Now skip - should delete history by exact UUID match
         try appState.skipPlanItem(id: planItemId)
@@ -186,8 +185,8 @@ final class DataModelFlowTests: XCTestCase {
         c3.cancel()
 
         // Verify history was deleted
-        historyLogs = try supplementRepo.logsForDate(Date())
-        XCTAssertFalse(historyLogs.contains { $0.id == planItemId }, "History should be deleted on skip")
+        historyDoses = try doseRepo.dosesForDate(Date())
+        XCTAssertFalse(historyDoses.contains { $0.id == planItemId }, "History should be deleted on skip")
 
         // Verify plan is marked as skipped
         let updatedPlan = planRepo.items.first { $0.id == planItemId }
@@ -203,11 +202,12 @@ final class DataModelFlowTests: XCTestCase {
         let skippedItemId = "SKIPPED-ITEM-\(dayKey)"
         let skippedItem = DailyPlanItemModel(
             id: skippedItemId,
-            compoundName: "SkippedSupplement",
+            compoundName: "SkippedCaffeine",
             scheduledTime: Date(),
             status: .skipped,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95
         )
         try planRepo.save(skippedItem)
 
@@ -238,11 +238,12 @@ final class DataModelFlowTests: XCTestCase {
         let approvedItemId = "APPROVED-ITEM-\(dayKey)"
         let approvedItem = DailyPlanItemModel(
             id: approvedItemId,
-            compoundName: "ApprovedSupplement",
+            compoundName: "Caffeine",
             scheduledTime: Date(),
             status: .taken,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95
         )
         try planRepo.save(approvedItem)
 
@@ -256,13 +257,13 @@ final class DataModelFlowTests: XCTestCase {
         c.cancel()
 
         // Create corresponding history entry manually
-        try supplementRepo.addWithId(id: approvedItemId, compoundName: "ApprovedSupplement", status: .pending)
+        try doseRepo.addWithId(id: approvedItemId, timestamp: Date(), caffeineMg: 95, beverageName: "Coffee")
 
         // Wait for history update
         let historyExp = expectation(description: "history entry added")
         historyExp.assertForOverFulfill = false
-        let c2 = supplementRepo.$logs.dropFirst().sink { logs in
-            if logs.contains(where: { $0.id == approvedItemId }) { historyExp.fulfill() }
+        let c2 = doseRepo.$doses.dropFirst().sink { doses in
+            if doses.contains(where: { $0.id == approvedItemId }) { historyExp.fulfill() }
         }
         wait(for: [historyExp], timeout: 2.0)
         c2.cancel()
@@ -271,8 +272,8 @@ final class DataModelFlowTests: XCTestCase {
         let planItems = planRepo.items.filter { $0.dayKey == dayKey }
         XCTAssertTrue(planItems.contains { $0.id == approvedItemId && $0.status == .taken })
 
-        let historyLogs = try supplementRepo.logsForDate(Date())
-        XCTAssertTrue(historyLogs.contains { $0.id == approvedItemId })
+        let historyDoses = try doseRepo.dosesForDate(Date())
+        XCTAssertTrue(historyDoses.contains { $0.id == approvedItemId })
     }
 
 }

@@ -12,9 +12,6 @@ final class RegressionTests: XCTestCase {
     var db: DatabaseQueue!
     var appState: AppState!
     var doseRepo: DoseRepository!
-    var supplementRepo: SupplementLogRepository!
-    var hydrationRepo: HydrationRepository!
-    var exerciseRepo: ExerciseRepository!
     var planRepo: DailyPlanRepository!
 
     override func setUp() async throws {
@@ -24,18 +21,12 @@ final class RegressionTests: XCTestCase {
         let profileRepo = UserProfileRepository(db: db)
         doseRepo = DoseRepository(db: db)
         let beverageRepo = BeverageRepository(db: db)
-        supplementRepo = SupplementLogRepository(db: db)
-        hydrationRepo = HydrationRepository(db: db)
-        exerciseRepo = ExerciseRepository(db: db)
         planRepo = DailyPlanRepository(db: db)
 
         appState = AppState(
             profileRepo: profileRepo,
             doseRepo: doseRepo,
             beverageRepo: beverageRepo,
-            supplementRepo: supplementRepo,
-            hydrationRepo: hydrationRepo,
-            exerciseRepo: exerciseRepo,
             planRepo: planRepo
         )
     }
@@ -48,61 +39,34 @@ final class RegressionTests: XCTestCase {
         c.cancel()
     }
 
-    func wait(for repo: SupplementLogRepository, timeout: TimeInterval = 2.0) {
-        let exp = expectation(description: "repo updated")
-        exp.assertForOverFulfill = false
-        let c = repo.$logs.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: timeout)
-        c.cancel()
-    }
-
-    func wait(for repo: ExerciseRepository, timeout: TimeInterval = 2.0) {
-        let exp = expectation(description: "repo updated")
-        exp.assertForOverFulfill = false
-        let c = repo.$logs.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: timeout)
-        c.cancel()
-    }
-
     // Bug 3: Stack compounds saved and retrieved from profile
     func testStackCompoundsPersistedInProfile() throws {
         var profile = try appState.getOrCreateProfile()
-        profile.stackCompounds = ["L-Theanine", "Creatine"]
+        profile.stackCompounds = ["Caffeine"]
         try appState.saveProfile(profile)
 
         // Wait for ValueObservation to propagate
         let exp = expectation(description: "profile updated")
         exp.assertForOverFulfill = false
         let c = appState.$profile.sink { p in
-            if p?.stackCompounds == ["L-Theanine", "Creatine"] {
+            if p?.stackCompounds == ["Caffeine"] {
                 exp.fulfill()
             }
         }
         wait(for: [exp], timeout: 2.0)
         c.cancel()
 
-        XCTAssertEqual(appState.profile?.stackCompounds, ["L-Theanine", "Creatine"])
+        XCTAssertEqual(appState.profile?.stackCompounds, ["Caffeine"])
     }
 
-    // Bug 5: Supplements logged to DB and retrievable
-    func testSupplementLoggedToDB() throws {
-        try appState.addSupplement(compoundName: "L-Theanine")
-        wait(for: supplementRepo)
+    // Bug 5: Doses logged to DB and retrievable
+    func testDoseLoggedToDB() throws {
+        try appState.addDose(timestamp: Date(), caffeineMg: 95.0, beverageName: "Coffee")
+        wait(for: doseRepo)
 
-        let logs = try supplementRepo.logsForDate(Date())
-        XCTAssertEqual(logs.count, 1)
-        XCTAssertEqual(logs[0].compoundName, "L-Theanine")
-    }
-
-    // Bug 5: Exercise logged to DB and retrievable
-    func testExerciseLoggedToDB() throws {
-        try appState.addExercise(activityName: "Running", durationMinutes: 30)
-        wait(for: exerciseRepo)
-
-        let logs = try exerciseRepo.logsForDate(Date())
-        XCTAssertEqual(logs.count, 1)
-        XCTAssertEqual(logs[0].activityName, "Running")
-        XCTAssertEqual(logs[0].durationMinutes, 30)
+        let doses = try doseRepo.dosesForDate(Date())
+        XCTAssertEqual(doses.count, 1)
+        XCTAssertEqual(doses[0].caffeineMg, 95.0)
     }
 
     // Bug 6: History computed from actual data
@@ -110,16 +74,9 @@ final class RegressionTests: XCTestCase {
         try appState.addDose(timestamp: Date(), caffeineMg: 95.0, beverageName: "Coffee")
         wait(for: doseRepo)
 
-        try appState.addHydration(amountMl: 250.0)
-        try appState.addSupplement(compoundName: "Creatine")
-        try appState.addExercise(activityName: "Yoga", durationMinutes: 45)
-
         let summary = appState.summaryForDate(Date())
         XCTAssertEqual(summary.doseCount, 1)
         XCTAssertEqual(summary.totalCaffeineMg, 95.0)
-        XCTAssertEqual(summary.totalHydrationMl, 250.0)
-        XCTAssertEqual(summary.supplementCount, 1)
-        XCTAssertEqual(summary.exerciseCount, 1)
     }
 
     // Bug 6: History for date with no data returns empty

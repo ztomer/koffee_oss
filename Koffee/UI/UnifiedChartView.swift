@@ -1,67 +1,56 @@
 import SwiftUI
 import Charts
 
-struct UnifiedNootropicChart: View {
+/// Caffeine timeline chart: current level, bedtime projection, safe-limit
+/// rule and optimal focus window. All values derive from logged caffeine
+/// doses plus today's pending caffeine plan items.
+struct CaffeineTimelineChart: View {
     let doses: [Dose]
-    let supplements: [NootropicCompound]
     let wakeTime: Date
     let sleepTime: Date
     let safeLimit: Double
 
     @State private var selectedTime: Date?
 
-    private var activeInteractions: [(extensionHours: Double, description: String)] {
-        // Build interactions from supplements in the chart
-        let interactionModel = NootropicInteractionModel(compounds: supplements, caffeineDoseMg: 100)
-        return interactionModel.activeInteractions.map { ($0.extensionHours, $0.description) }
-    }
-
-    private var focusWindow: FocusWindow? {
-        let doseTuples = doses.compactMap { d -> (Date, Double)? in
+    private var doseTuples: [(Date, Double)] {
+        doses.compactMap { d -> (Date, Double)? in
             guard let time = d.time, d.amount > 0 else { return nil }
             return (time, d.amount)
         }
+    }
+
+    private var focusWindow: FocusWindow? {
         guard !doseTuples.isEmpty else { return nil }
         return calculateOptimalFocusWindow(doses: doseTuples, threshold: 50)
     }
 
     private var unifiedData: [UnifiedCurvePoint] {
         let endTime = sleepTime.addingTimeInterval(3600 * 4)
-
-        let filteredDoses = doses.compactMap { d -> (Date, Double)? in
-            guard let time = d.time, d.amount > 0 else { return nil }
-            return (time, d.amount)
-        }
-
         return generateUnifiedCurvePoints(
-            doses: filteredDoses,
-            supplements: supplements,
+            doses: doseTuples,
             from: wakeTime,
             to: endTime,
-            metabolism: MetabolismRate.medium,
-            interactions: activeInteractions
+            metabolism: MetabolismRate.medium
         )
     }
 
-    private var normalizedData: [NormalizedCurvePoint] {
-        var safeLimits: [String: Double] = [:]
-
-        for compound in supplements {
-            safeLimits[compound.rawValue] = Double(compound.safeLimitMg)
+    /// Caffeine level as percent of the safe bedtime limit.
+    private var normalizedData: [(time: Date, percent: Double, mg: Double)] {
+        guard safeLimit > 0 else { return [] }
+        return unifiedData.map { point in
+            let mg = point.compoundLevels[NootropicCompound.caffeine.rawValue] ?? point.totalLevel
+            return (point.time, mg / safeLimit * 100, mg)
         }
-
-        return ChartNormalizer.normalize(unifiedData, safeLimits: safeLimits)
     }
 
-    private var allCompounds: [String] {
-        var compounds = [NootropicCompound.caffeine.rawValue]
-        compounds.append(contentsOf: supplements.map { $0.rawValue })
-        return compounds
+    private var maxYValue: Double {
+        let overallMax = normalizedData.map { $0.percent }.max() ?? 30
+        return max(30, overallMax)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if unifiedData.isEmpty {
+            if normalizedData.isEmpty {
                 emptyStateView
             } else {
                 chartView
@@ -74,20 +63,6 @@ struct UnifiedNootropicChart: View {
         .clipShape(.rect(cornerRadius: 12))
     }
 
-    private var headerSection: some View {
-        HStack {
-            Text("Unified Nootropic Timeline")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(.white)
-            Spacer()
-            if let time = selectedTime {
-                Text(formatTime(time))
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.orange)
-            }
-        }
-    }
-
     private var emptyStateView: some View {
         Text("Add caffeine doses to see timeline")
             .font(.system(size: 12))
@@ -95,43 +70,38 @@ struct UnifiedNootropicChart: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var maxYValue: Double {
-        // Find max percentage for each compound across all time points
-        var maxPercentForEachCompound: [String: Double] = [:]
-
-        for point in normalizedData {
-            for compound in allCompounds {
-                let level = point.level(for: compound)
-                let currentMax = maxPercentForEachCompound[compound] ?? 0
-                if level > currentMax {
-                    maxPercentForEachCompound[compound] = level
-                }
-            }
-        }
-
-        // Find the overall maximum across all compounds
-        let overallMax = maxPercentForEachCompound.values.max() ?? 30
-
-        // Minimum 30% to prevent cutoff when data is small
-        return max(30, overallMax)
-    }
-
     private var chartView: some View {
-        let count = normalizedData.count
-        let compounds = allCompounds
+        let data = normalizedData
         let yMax = maxYValue
 
-        // Chart time domain - from first data point to last data point (extends past sleepTime)
-        let chartStart = normalizedData.first?.time ?? wakeTime
-        let chartEnd = normalizedData.last?.time ?? sleepTime.addingTimeInterval(3600 * 4)
+        let chartStart = data.first?.time ?? wakeTime
+        let chartEnd = data.last?.time ?? sleepTime.addingTimeInterval(3600 * 4)
 
         return Chart {
-            chartLines(count: count, compounds: compounds)
+            ForEach(data, id: \.time) { point in
+                if point.percent > 0 {
+                    LineMark(
+                        x: .value("Time", point.time),
+                        y: .value("Level", point.percent),
+                        series: .value("Compound", NootropicCompound.caffeine.rawValue)
+                    )
+                    .foregroundStyle(.orange)
+                    .lineStyle(StrokeStyle(lineWidth: 3))
+                }
+            }
 
-            safeLimitRule
+            RuleMark(y: .value("Safe Limit", 100))
+                .foregroundStyle(.red.opacity(0.5))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
 
             if yMax > 100 {
-                warningArea(wakeTime: wakeTime, sleepTime: sleepTime, yMax: yMax)
+                RectangleMark(
+                    xStart: .value("Start", wakeTime),
+                    xEnd: .value("End", sleepTime),
+                    yStart: .value("Limit", 100),
+                    yEnd: .value("Max", yMax)
+                )
+                .foregroundStyle(.red.opacity(0.05))
             }
 
             // Focus window rectangle
@@ -146,7 +116,6 @@ struct UnifiedNootropicChart: View {
             }
         }
         .chartXScale(domain: chartStart...chartEnd)
-        .chartForegroundStyleScale(domain: compounds, range: compounds.map { compoundColor($0) })
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: 2)) { value in
                 AxisValueLabel {
@@ -171,77 +140,23 @@ struct UnifiedNootropicChart: View {
             }
         }
         .chartLegend(position: .bottom, alignment: .center, spacing: 10) {
-            let c = compounds
-            HStack(spacing: 12) {
-                ForEach(c, id: \.self) { compound in
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(compoundColor(compound))
-                            .frame(width: 8, height: 8)
-                        Text(compound)
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                    }
-                }
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(.orange)
+                    .frame(width: 8, height: 8)
+                Text(NootropicCompound.caffeine.rawValue)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
             }
         }
     }
 
-    @ChartContentBuilder
-    private func chartLines(count: Int, compounds: [String]) -> some ChartContent {
-        ForEach(0..<count, id: \.self) { i in
-            let point = normalizedData[i]
-            ForEach(compounds, id: \.self) { compound in
-                let level = point.level(for: compound)
-                if level > 0 {
-                    let isCaffeine = compound == NootropicCompound.caffeine.rawValue
-                    LineMark(
-                        x: .value("Time", point.time),
-                        y: .value("Level", level),
-                        series: .value("Compound", compound)
-                    )
-                    .foregroundStyle(by: .value("Compound", compound))
-                    .lineStyle(StrokeStyle(lineWidth: isCaffeine ? 3 : 2))
-                }
-            }
-        }
-    }
-
-    private var safeLimitRule: some ChartContent {
-        RuleMark(y: .value("Safe Limit", 100))
-            .foregroundStyle(.red.opacity(0.5))
-            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
-    }
-
-    private func warningArea(wakeTime: Date, sleepTime: Date, yMax: Double) -> some ChartContent {
-        RectangleMark(
-            xStart: .value("Start", wakeTime),
-            xEnd: .value("End", sleepTime),
-            yStart: .value("Limit", 100),
-            yEnd: .value("Max", yMax)
-        )
-        .foregroundStyle(.red.opacity(0.05))
-    }
-
-    private var supplementTimingLines: [(time: Date, name: String, color: Color)] {
-        guard let firstDose = doses.first, let coffeeTime = firstDose.time else { return [] }
-
-        var lines: [(time: Date, name: String, color: Color)] = []
-
-        for supplement in supplements {
-            let offset = supplement.recommendedTimingMinutes
-            let time = coffeeTime.addingTimeInterval(offset * 60)
-            lines.append((time: time, name: supplement.rawValue, color: compoundColor(supplement.rawValue)))
-        }
-
-        return lines.sorted { $0.time < $1.time }
-    }
-
-private var currentStatusView: some View {
-        let currentData = unifiedData.first { $0.time >= Date() } ?? unifiedData.last
-        let currentCaffeine = currentData?.compoundLevels[NootropicCompound.caffeine.rawValue] ?? 0
-        let bedtimeData = unifiedData.last { $0.time <= sleepTime } ?? unifiedData.last
-        let bedtimeCaffeine = bedtimeData?.compoundLevels[NootropicCompound.caffeine.rawValue] ?? 0
+    private var currentStatusView: some View {
+        let now = Date()
+        let currentData = normalizedData.first { $0.time >= now } ?? normalizedData.last
+        let currentCaffeine = currentData?.mg ?? 0
+        let bedtimeData = normalizedData.last { $0.time <= sleepTime } ?? normalizedData.last
+        let bedtimeCaffeine = bedtimeData?.mg ?? 0
 
         // Calculate peak time (caffeine peaks at ~45 min)
         let peakTime = doses.first?.time?.addingTimeInterval(45 * 60) ?? Date()
@@ -283,10 +198,6 @@ private var currentStatusView: some View {
         }
     }
 
-    private func compoundColor(_ compound: String) -> Color {
-        colorForCompound(compound)
-    }
-
     private func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -297,17 +208,5 @@ private var currentStatusView: some View {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
-    }
-
-    private func bedtimeRiskColor(_ level: Double) -> Color {
-        if level <= safeLimit * 0.5 { return .green }
-        if level <= safeLimit { return .yellow }
-        return .red
-    }
-
-    private func bedtimeRiskIcon(_ level: Double) -> String {
-        if level <= safeLimit * 0.5 { return "moon.fill" }
-        if level <= safeLimit { return "exclamationmark.triangle" }
-        return "moon.zzz.fill"
     }
 }

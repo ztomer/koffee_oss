@@ -11,18 +11,6 @@ extension AppState {
         doses.first { $0.id == id }
     }
 
-    func findHydration(byId id: String) -> HydrationEntryModel? {
-        hydrationEntries.first { $0.id == id }
-    }
-
-    func findSupplement(byId id: String) -> SupplementLogModel? {
-        supplementLogs.first { $0.id == id }
-    }
-
-    func findExercise(byId id: String) -> ExerciseLogModel? {
-        exerciseLogs.first { $0.id == id }
-    }
-
     var takenPlanItemIds: Set<String> {
         let today = DateHelper.calendar.startOfDay(for: Date())
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
@@ -81,17 +69,6 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
 
     func pendingPlanItemsByCompoundToday(_ compoundUuid: String) -> [DailyPlanItemModel] {
         pendingPlanItemsTodayByCompound(compoundUuid)
-    }
-
-    func pendingNonCaffeineItemsToday() -> [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
-        let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
-        return dailyPlanItems.filter {
-            $0.compoundUuid != "caffeine" &&
-            $0.status == .pending &&
-            $0.scheduledTime >= today &&
-            $0.scheduledTime < tomorrow
-        }
     }
 
     var visiblePlanItems: [DailyPlanItemModel] {

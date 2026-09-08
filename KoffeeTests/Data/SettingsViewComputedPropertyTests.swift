@@ -33,9 +33,4 @@ final class SettingsViewComputedPropertyTests: XCTestCase {
         XCTAssertTrue(BiologicalSex.allCases.contains(.male))
         XCTAssertTrue(BiologicalSex.allCases.contains(.female))
     }
-
-    func testOptimizationGoalCases() {
-        XCTAssertTrue(OptimizationGoal.allCases.contains(.balanced))
-        XCTAssertTrue(OptimizationGoal.allCases.contains(.deepSleep))
-    }
 }

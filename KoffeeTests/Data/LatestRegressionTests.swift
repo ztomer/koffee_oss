@@ -12,9 +12,6 @@ final class LatestRegressionTests: XCTestCase {
     var db: DatabaseQueue!
     var appState: AppState!
     var doseRepo: DoseRepository!
-    var supplementRepo: SupplementLogRepository!
-    var hydrationRepo: HydrationRepository!
-    var exerciseRepo: ExerciseRepository!
     var planRepo: DailyPlanRepository!
 
     override func setUp() async throws {
@@ -24,18 +21,12 @@ final class LatestRegressionTests: XCTestCase {
         let profileRepo = UserProfileRepository(db: db)
         doseRepo = DoseRepository(db: db)
         let beverageRepo = BeverageRepository(db: db)
-        supplementRepo = SupplementLogRepository(db: db)
-        hydrationRepo = HydrationRepository(db: db)
-        exerciseRepo = ExerciseRepository(db: db)
         planRepo = DailyPlanRepository(db: db)
 
         appState = AppState(
             profileRepo: profileRepo,
             doseRepo: doseRepo,
             beverageRepo: beverageRepo,
-            supplementRepo: supplementRepo,
-            hydrationRepo: hydrationRepo,
-            exerciseRepo: exerciseRepo,
             planRepo: planRepo
         )
     }
@@ -52,103 +43,18 @@ final class LatestRegressionTests: XCTestCase {
         c.cancel()
     }
 
-    func testSupplementCompletionTracking() throws {
-        // Default add records a COMPLETED (taken) supplement
-        try appState.addSupplement(compoundName: "L-Theanine")
-        let exp = expectation(description: "supplement logged")
-        exp.assertForOverFulfill = false
-        let c = appState.$supplementLogs.sink { logs in
-            if logs.count > 0 { exp.fulfill() }
-        }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-        let todayLogs = try supplementRepo.logsForDate(Date())
-        XCTAssertEqual(todayLogs.count, 1)
-        XCTAssertEqual(todayLogs[0].compoundName, "L-Theanine")
-        XCTAssertEqual(todayLogs[0].status, .taken)
-    }
-
-    func testSupplementSkipTracking() throws {
-        try appState.addSupplement(compoundName: "Creatine", status: .skipped)
-        let exp = expectation(description: "supplement skipped")
-        exp.assertForOverFulfill = false
-        let c = appState.$supplementLogs.sink { logs in
-            if logs.count > 0 && logs[0].status == .skipped { exp.fulfill() }
-        }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-        let todayLogs = try supplementRepo.logsForDate(Date())
-        XCTAssertEqual(todayLogs.count, 1)
-        XCTAssertEqual(todayLogs[0].status, .skipped)
-    }
-
-    func testAllCompoundsCanBeLogged() throws {
-        for compound in NootropicCompound.allCases {
-            try appState.addSupplement(compoundName: compound.rawValue)
-        }
-        let exp = expectation(description: "all supplements logged")
-        exp.assertForOverFulfill = false
-        var count = 0
-        let c = appState.$supplementLogs.dropFirst().sink { _ in
-            count += 1
-            if count >= NootropicCompound.allCases.count { exp.fulfill() }
-        }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-        XCTAssertEqual(appState.supplementLogs.count, NootropicCompound.allCases.count)
-        let loggedNames = Set(appState.supplementLogs.map { $0.compoundName })
-        let allNames = Set(NootropicCompound.allCases.map { $0.rawValue })
-        XCTAssertEqual(loggedNames, allNames)
-    }
-
-    func testCompoundsCanBeSortedByTiming() throws {
-        let compounds = NootropicCompound.allCases
-        let sorted = compounds.sorted { $0.recommendedTimingMinutes < $1.recommendedTimingMinutes }
-        XCTAssertFalse(sorted.map { $0.rawValue } == compounds.map { $0.rawValue }.sorted())
-        for compound in compounds {
-            XCTAssertFalse(compound.recommendedTimingMinutes.isNaN)
-        }
-    }
-
-    func testSupplementLogsIncludeTimestamps() throws {
+    func testDoseLogsIncludeTimestamps() throws {
         let beforeLog = Date().addingTimeInterval(-1)
-        try appState.addSupplement(compoundName: "Magnesium")
-        let exp = expectation(description: "supplement logged")
+        try appState.addDose(timestamp: Date(), caffeineMg: 95.0, beverageName: "Coffee")
+        let exp = expectation(description: "dose logged")
         exp.assertForOverFulfill = false
-        let c = appState.$supplementLogs.dropFirst().sink { _ in exp.fulfill() }
+        let c = appState.$doses.dropFirst().sink { _ in exp.fulfill() }
         wait(for: [exp], timeout: 2.0)
         c.cancel()
-        let logs = try supplementRepo.logsForDate(Date())
+        let logs = try doseRepo.dosesForDate(Date())
         XCTAssertEqual(logs.count, 1)
         XCTAssertGreaterThanOrEqual(logs[0].timestamp, beforeLog)
-    }
-
-    func testExerciseLogsIncludeTimestamps() throws {
-        let beforeLog = Date().addingTimeInterval(-1)
-        try appState.addExercise(activityName: "Running", durationMinutes: 30)
-        let exp = expectation(description: "exercise logged")
-        exp.assertForOverFulfill = false
-        let c = appState.$exerciseLogs.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-        let logs = try exerciseRepo.logsForDate(Date())
-        XCTAssertEqual(logs.count, 1)
-        XCTAssertGreaterThanOrEqual(logs[0].timestamp, beforeLog)
-        XCTAssertEqual(logs[0].durationMinutes, 30)
-    }
-
-    func testHydrationLogsIncludeTimestamps() throws {
-        let beforeLog = Date().addingTimeInterval(-1)
-        try appState.addHydration(amountMl: 500.0)
-        let exp = expectation(description: "hydration logged")
-        exp.assertForOverFulfill = false
-        let c = appState.$hydrationEntries.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-        let logs = try hydrationRepo.entriesForDate(Date())
-        XCTAssertEqual(logs.count, 1)
-        XCTAssertGreaterThanOrEqual(logs[0].timestamp, beforeLog)
-        XCTAssertEqual(logs[0].amountMl, 500.0)
+        XCTAssertEqual(logs[0].caffeineMg, 95.0)
     }
 
     func wait(for repo: DoseRepository, timeout: TimeInterval = 2.0) {
@@ -162,10 +68,10 @@ final class LatestRegressionTests: XCTestCase {
     // DailyPlanItemModel persists and retrieves correctly
     func testDailyPlanItemPersistence() throws {
         let item = DailyPlanItemModel(
-            compoundUuid: "l-theanine",
+            compoundUuid: "caffeine",
             dayKey: "2026-04-05",
-            compoundName: "L-Theanine",
-            doseMg: 200,
+            compoundName: "Caffeine",
+            doseMg: 95,
             source: .baseStack,
             status: .pending,
             scheduledTime: Date()
@@ -181,17 +87,17 @@ final class LatestRegressionTests: XCTestCase {
         c.cancel()
 
         XCTAssertEqual(planRepo.items.count, 1)
-        XCTAssertEqual(planRepo.items[0].compoundName, "L-Theanine")
+        XCTAssertEqual(planRepo.items[0].compoundName, "Caffeine")
         XCTAssertEqual(planRepo.items[0].status, .pending)
     }
 
     // Plan item status updates correctly
     func testPlanItemStatusUpdate() throws {
         let item = DailyPlanItemModel(
-            compoundUuid: "creatine",
+            compoundUuid: "caffeine",
             dayKey: "2026-04-05",
-            compoundName: "Creatine",
-            doseMg: 5000,
+            compoundName: "Caffeine",
+            doseMg: 95,
             source: .baseStack,
             status: .pending,
             scheduledTime: Date()
@@ -312,37 +218,6 @@ final class LatestRegressionTests: XCTestCase {
         XCTAssertEqual(appState.doses[0].beverageName, "Espresso")
     }
 
-    // History detail includes hydration with time and amount
-    func testHistoryDetailIncludesHydrationDetails() throws {
-        try appState.addHydration(amountMl: 500.0)
-        let exp = expectation(description: "hydration logged")
-        exp.assertForOverFulfill = false
-        let c = appState.$hydrationEntries.sink { entries in
-            if entries.count > 0 { exp.fulfill() }
-        }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-
-        XCTAssertEqual(appState.hydrationEntries.count, 1)
-        XCTAssertEqual(appState.hydrationEntries[0].amountMl, 500.0)
-    }
-
-    // History detail includes exercise with time and duration
-    func testHistoryDetailIncludesExerciseDetails() throws {
-        try appState.addExercise(activityName: "Running", durationMinutes: 30)
-        let exp = expectation(description: "exercise logged")
-        exp.assertForOverFulfill = false
-        let c = appState.$exerciseLogs.sink { logs in
-            if logs.count > 0 { exp.fulfill() }
-        }
-        wait(for: [exp], timeout: 2.0)
-        c.cancel()
-
-        XCTAssertEqual(appState.exerciseLogs.count, 1)
-        XCTAssertEqual(appState.exerciseLogs[0].activityName, "Running")
-        XCTAssertEqual(appState.exerciseLogs[0].durationMinutes, 30)
-    }
-
     // Caffeine is in NootropicCompound.allCases
     func testCaffeineInAllCompounds() throws {
         let allCases = NootropicCompound.allCases
@@ -350,17 +225,6 @@ final class LatestRegressionTests: XCTestCase {
         XCTAssertEqual(NootropicCompound.caffeine.optimalDoseMg, 95)
         XCTAssertEqual(NootropicCompound.caffeine.halfLifeHours, 5.0)
         XCTAssertEqual(NootropicCompound.caffeine.recommendedTimingMinutes, 90)
-    }
-
-    // Stack compounds sorted by timing
-    func testStackCompoundsSortedByTiming() throws {
-        let compounds = NootropicCompound.allCases
-        let sorted = compounds.sorted { $0.recommendedTimingMinutes < $1.recommendedTimingMinutes }
-
-        // Caffeine (90 min) should come after L-Theanine (-45 min)
-        let caffeineIndex = sorted.firstIndex { $0 == .caffeine }!
-        let theanineIndex = sorted.firstIndex { $0 == .lTheanine }!
-        XCTAssertGreaterThan(caffeineIndex, theanineIndex)
     }
 
     private func setupFullSchema(_ db: DatabaseQueue) throws {

@@ -161,10 +161,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     wakeTime: wakeTime,
                     sleepTime: sleepTime,
                     stackCompounds: [
-                    NootropicCompound.caffeine.rawValue,
-                    NootropicCompound.lTheanine.rawValue,
-                    NootropicCompound.magnesium.rawValue,
-                    NootropicCompound.creatine.rawValue
+                    NootropicCompound.caffeine.rawValue
                 ]
                 )
                 try await db.write { db in
@@ -182,30 +179,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let doseRepo = DoseRepository(db: db)
                 debugLog("STEP 7: Created doseRepo, doses=\(doseRepo.doses.count)")
 
-                let supplementRepo = SupplementLogRepository(db: db)
-                debugLog("STEP 8: Created supplementRepo")
-
-                let hydrationRepo = HydrationRepository(db: db)
-                debugLog("STEP 9: Created hydrationRepo")
-
-                let exerciseRepo = ExerciseRepository(db: db)
-                debugLog("STEP 10: Created exerciseRepo")
-
                 let planRepo = DailyPlanRepository(db: db)
                 debugLog("STEP 11: Created planRepo")
-
-                let biometricRepo = BiometricRepository(db: db)
-                debugLog("STEP 12: Created biometricRepo")
 
                 appState = AppState(
                     profileRepo: profileRepo,
                     doseRepo: doseRepo,
                     beverageRepo: beverageRepo,
-                    supplementRepo: supplementRepo,
-                    hydrationRepo: hydrationRepo,
-                    exerciseRepo: exerciseRepo,
-                    planRepo: planRepo,
-                    biometricRepo: biometricRepo
+                    planRepo: planRepo
                 )
                 debugLog("STEP 13: AppState created, profile=\(appState.profile != nil), doses=\(appState.doses.count)")
 

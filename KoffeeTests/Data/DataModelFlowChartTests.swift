@@ -34,7 +34,6 @@ extension DataModelFlowTests {
 
         let points = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: [],
             from: wakeTime,
             to: endTime,
             metabolism: MetabolismRate.medium
@@ -48,93 +47,21 @@ extension DataModelFlowTests {
         XCTAssertTrue(pointAfterDose?.compoundLevels["Caffeine"] ?? 0 > 0, "Point after dose should have caffeine")
     }
 
-    // Test that generateUnifiedCurvePoints produces output with supplements
-    func testChartDataGeneration_WithSupplements() throws {
-        let calendar = Calendar.current
-        let now = Date()
-
-        // No doses, but with supplements
-        let doses: [(Date, Double)] = []
-        let supplements: [NootropicCompound] = [.lTheanine, .magnesium]
-        let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
-        let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
-        let endTime = sleepTime.addingTimeInterval(3600 * 4)
-
-        let points = generateUnifiedCurvePoints(
-            doses: doses,
-            supplements: supplements,
-            from: wakeTime,
-            to: endTime,
-            metabolism: MetabolismRate.medium
-        )
-
-        XCTAssertGreaterThan(points.count, 0, "Should generate curve points even without doses")
-
-        // Without doses, supplements have 0 level (they use doses as input for calculation)
-        // So check that the function runs without error and returns expected structure
-        XCTAssertEqual(points.first?.compoundLevels.keys.contains("L-Theanine"), true, "Should have L-Theanine key")
-        XCTAssertEqual(points.first?.compoundLevels.keys.contains("Magnesium"), true, "Should have Magnesium key")
-    }
-
-    // Test composite supplements from timeline
-    func testChartDataGeneration_CompositeSupplements() throws {
-        let calendar = Calendar.current
-        let dayKey = calendar.dateComponents([.year, .month, .day], from: Date()).description
-
-        // Add a supplement
-        try supplementRepo.addWithId(id: "CHART-SUPP-1-\(dayKey)", compoundName: "L-Theanine", status: .pending)
-
-        let saveExp = expectation(description: "supplement added")
-        saveExp.assertForOverFulfill = false
-        let c = appState.$supplementLogs.dropFirst().sink { logs in
-            if logs.count > 0 { saveExp.fulfill() }
-        }
-        wait(for: [saveExp], timeout: 2.0)
-        c.cancel()
-
-        // Get composite supplements (simulating Dashboard logic)
-        let today = calendar.startOfDay(for: Date())
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
-
-        let todaySupplements = appState.supplementLogs.filter { $0.timestamp >= today && $0.timestamp < tomorrow }
-        var compounds: Set<NootropicCompound> = []
-        for log in todaySupplements {
-            if let compound = NootropicCompound(rawValue: log.compoundName) {
-                compounds.insert(compound)
-            }
-        }
-
-        let pendingSupplements = appState.dailyPlanItems.filter {
-            $0.compoundUuid != "caffeine" && $0.status == .pending && $0.scheduledTime >= today && $0.scheduledTime < tomorrow
-        }
-        for item in pendingSupplements {
-            if let compound = NootropicCompound(rawValue: item.compoundName) {
-                compounds.insert(compound)
-            }
-        }
-
-        let compositeSupplements = Array(compounds)
-
-        XCTAssertTrue(compositeSupplements.contains(.lTheanine), "Should have L-Theanine from history")
-        XCTAssertEqual(compositeSupplements.count, 1, "Should have exactly 1 compound")
-    }
-
-    // Test full chart data flow with doses and supplements
+    // Test full chart data flow with doses
     func testChartDataGeneration_FullFlow() throws {
         let calendar = Calendar.current
         let now = Date()
         let dayKey = calendar.dateComponents([.year, .month, .day], from: now).description
 
-        // Add dose and supplement
+        // Add dose
         try doseRepo.addWithId(id: "CHART-FULL-1-\(dayKey)", beverageId: nil, timestamp: now.addingTimeInterval(3600), caffeineMg: 95, beverageName: "Coffee")
-        try supplementRepo.addWithId(id: "CHART-FULL-2-\(dayKey)", compoundName: "L-Theanine", status: .pending)
 
         let saveExp = expectation(description: "data added")
         saveExp.assertForOverFulfill = false
-        let c = Publishers.CombineLatest(appState.$doses, appState.$supplementLogs)
+        let c = appState.$doses
             .dropFirst()
-            .sink { doses, logs in
-                if doses.count > 0 && logs.count > 0 { saveExp.fulfill() }
+            .sink { doses in
+                if doses.count > 0 { saveExp.fulfill() }
             }
         wait(for: [saveExp], timeout: 2.0)
         c.cancel()
@@ -147,14 +74,6 @@ extension DataModelFlowTests {
         let todayDoses = appState.doses.filter { $0.timestamp >= today && $0.timestamp < tomorrow }
         let doses = todayDoses.map { ($0.timestamp, $0.caffeineMg) }
 
-        // Composite supplements
-        var supplementSet: Set<NootropicCompound> = []
-        for log in appState.supplementLogs.filter({ $0.timestamp >= today && $0.timestamp < tomorrow }) {
-            if let compound = NootropicCompound(rawValue: log.compoundName) {
-                supplementSet.insert(compound)
-            }
-        }
-
         // Generate chart data
         let wakeTime = appState.profile?.wakeTime ?? calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
         let sleepTime = appState.profile?.sleepTime ?? calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
@@ -162,7 +81,6 @@ extension DataModelFlowTests {
 
         let chartData = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: Array(supplementSet),
             from: wakeTime,
             to: endTime,
             metabolism: MetabolismRate.medium
@@ -170,16 +88,14 @@ extension DataModelFlowTests {
 
         // Verify data flow
         XCTAssertEqual(doses.count, 1, "Should have 1 dose")
-        XCTAssertEqual(supplementSet.count, 1, "Should have 1 supplement")
         XCTAssertGreaterThan(chartData.count, 0, "Should generate chart points")
 
         // Find point at or after dose time (first point is at wake time, dose is later)
         let doseTime = doses[0].0
         let pointAfterDose = chartData.first { $0.time >= doseTime } ?? chartData.last!
 
-        // Verify Caffeine and L-Theanine are in the data at/after dose time
+        // Verify Caffeine is in the data at/after dose time
         XCTAssertTrue(pointAfterDose.compoundLevels["Caffeine"] ?? 0 > 0, "Should have caffeine at dose time")
-        XCTAssertTrue(pointAfterDose.compoundLevels["L-Theanine"] ?? 0 > 0, "Should have L-Theanine at dose time")
     }
 
     // MARK: - Regression Tests for Date Handling
@@ -206,7 +122,6 @@ extension DataModelFlowTests {
 
         let chartData = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: [.caffeine],
             from: wakeTime,
             to: sleepTime.addingTimeInterval(3600 * 4),
             metabolism: .medium
@@ -233,12 +148,10 @@ extension DataModelFlowTests {
         let doseTime = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: now)!
         let doses: [(Date, Double)] = [(doseTime, 95.0)]
 
-        // Use L-Theanine as supplement
         let endTime = sleepTime.addingTimeInterval(3600 * 4)
 
         let chartData = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: [.lTheanine],
             from: wakeTime,
             to: endTime,
             metabolism: .medium
@@ -257,91 +170,46 @@ extension DataModelFlowTests {
         // Verify caffeine (handled via calculateCaffeineLevel) is > 0
         let caffeineLevel = pointAfterDose!.compoundLevels["Caffeine"] ?? 0
         XCTAssertGreaterThan(caffeineLevel, 0, "Should have caffeine level > 0 after dose")
-
-        // Verify L-Theanine levels (which comes from supplements using optimalDoseMg)
-        let lTheanineLevel = pointAfterDose!.compoundLevels["L-Theanine"] ?? 0
-        XCTAssertGreaterThan(lTheanineLevel, 0, "Should have L-Theanine level > 0 (uses optimalDoseMg)")
     }
-
-    // MARK: - Regression Tests for Composite Supplements
-
-    // Tests for graph showing supplements from profile stack - see DashboardView.compositeSupplements
 
     // MARK: - Regression Test: Chart Data With No Doses vs With Coffee
 
     @MainActor
-    func testChartData_ProfileStack_NoDoses_vs_WithDose() throws {
+    func testChartData_NoDoses_vs_WithDose() throws {
         let calendar = Calendar.current
         let now = Date()
         let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
         let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
         let endTime = sleepTime.addingTimeInterval(3600 * 4)
 
-        // Profile has L-Theanine and Magnesium
-        let supplements: [NootropicCompound] = [.lTheanine, .magnesium]
-
         // NO DOSES CASE
         let noDosesChartData = generateUnifiedCurvePoints(
             doses: [],
-            supplements: supplements,
             from: wakeTime,
             to: endTime,
             metabolism: .medium
         )
 
-        // Verify: With no doses, we should still have chart points with supplement levels
         XCTAssertFalse(noDosesChartData.isEmpty, "Should generate chart data even with no doses")
-
-        let firstPoint = noDosesChartData.first!
-        let middleIndex = noDosesChartData.count / 2
-        let middlePoint = noDosesChartData[middleIndex]
-        let lastPoint = noDosesChartData.last!
-
-        // L-Theanine: recommendedTiming = -45min (6:15am), so at 7am it's 45 min after "take time"
-        // Should have some level at 7am
-        let ltheanineFirst = firstPoint.compoundLevels["L-Theanine"] ?? 0
-        XCTAssertGreaterThan(ltheanineFirst, 0, "L-Theanine should have level at 7am (starts before wake)")
-
-        // Magnesium: recommendedTiming = +60min (8:00am), so at 7am it's BEFORE take time
-        // Should have ZERO level at 7am (hasn't been taken yet)
-        let magnesiumFirst = firstPoint.compoundLevels["Magnesium"] ?? 0
-        XCTAssertEqual(magnesiumFirst, 0, "Magnesium should have 0 level at 7am (takes at 8am)")
-
-        // At middle of day (12pm), both should have levels
-        let ltheanineMiddle = middlePoint.compoundLevels["L-Theanine"] ?? 0
-        let magnesiumMiddle = middlePoint.compoundLevels["Magnesium"] ?? 0
-
-        XCTAssertGreaterThan(ltheanineMiddle, 0, "L-Theanine should have level at noon")
-        XCTAssertGreaterThan(magnesiumMiddle, 0, "Magnesium should have level at noon")
-
-        // Key test: levels should change over time (different curves)
-        // L-Theanine (4h half-life) should decay faster than Magnesium (6h half-life)
-        let ltheanineLast = lastPoint.compoundLevels["L-Theanine"] ?? 0
-        let magnesiumLast = lastPoint.compoundLevels["Magnesium"] ?? 0
-
-        XCTAssertLessThan(ltheanineLast, ltheanineMiddle, "L-Theanine should decay by late night")
-        XCTAssertLessThan(magnesiumLast, magnesiumMiddle, "Magnesium should decay by late night")
-
-        // L-Theanine decays faster (4h vs 6h half-life)
-        let ltheanineDecayRatio = ltheanineLast / max(ltheanineMiddle, 0.001)
-        let magnesiumDecayRatio = magnesiumLast / max(magnesiumMiddle, 0.001)
-        XCTAssertLessThan(ltheanineDecayRatio, magnesiumDecayRatio, "L-Theanine (4h HL) should decay more than Magnesium (6h HL)")
+        for point in noDosesChartData {
+            XCTAssertEqual(point.totalLevel, 0, "Total level should be 0 with no doses")
+        }
 
         // WITH COFFEE CASE - verify caffeine is added
         let coffeeTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: now)!
         let withDoseChartData = generateUnifiedCurvePoints(
             doses: [(coffeeTime, 95.0)],
-            supplements: supplements,
             from: wakeTime,
             to: endTime,
             metabolism: .medium
         )
 
+        let middleIndex = withDoseChartData.count / 2
         let middleWithCoffee = withDoseChartData[middleIndex]
         let caffeineWithCoffee = middleWithCoffee.compoundLevels["Caffeine"] ?? 0
 
         XCTAssertGreaterThan(caffeineWithCoffee, 0, "Should have caffeine when dose is added")
-        XCTAssertGreaterThan(middleWithCoffee.totalLevel, middlePoint.totalLevel, "Total level should be higher with coffee")
+        XCTAssertGreaterThan(middleWithCoffee.totalLevel, 0, "Total level should be higher with coffee")
     }
 
     // MARK: - Regression: Empty Timeline Should Show No Graph
@@ -352,9 +220,8 @@ extension DataModelFlowTests {
         let now = Date()
         let dayKey = calendar.dateComponents([.year, .month, .day], from: now).description
 
-        // Verify: No doses, no plan items, no supplement logs, no profile stack = empty chart
+        // Verify: No doses, no plan items = empty chart
         let doses: [(Date, Double)] = []
-        let supplements: [NootropicCompound] = []
 
         let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
         let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
@@ -362,7 +229,6 @@ extension DataModelFlowTests {
 
         let chartData = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: supplements,
             from: wakeTime,
             to: endTime,
             metabolism: .medium
@@ -409,7 +275,6 @@ extension DataModelFlowTests {
 
         // Verify: pending item causes graph to have data
         let doses: [(Date, Double)] = [(pendingTime, 100)]
-        let supplements: [NootropicCompound] = []
 
         let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
         let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
@@ -417,7 +282,6 @@ extension DataModelFlowTests {
 
         let chartData = generateUnifiedCurvePoints(
             doses: doses,
-            supplements: supplements,
             from: wakeTime,
             to: endTime,
             metabolism: .medium

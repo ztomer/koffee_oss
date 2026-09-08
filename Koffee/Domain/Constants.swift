@@ -84,17 +84,6 @@ enum CaffeineConstants {
     static let caffeineCompoundUuid: String = "caffeine"
 }
 
-// MARK: - Optimization Constants
-enum OptimizationConstants {
-    static let defaultGoal: String = "balanced"
-    static let balanced: String = "balanced"
-    static let focus: String = "focus"
-    static let sleep: String = "sleep"
-    static let energy: String = "energy"
-
-    static let allGoals: [String] = [balanced, focus, sleep, energy]
-}
-
 // MARK: - Compound Helpers
 extension NootropicCompound {
     var isCaffeine: Bool { self == .caffeine }

@@ -12,9 +12,6 @@ final class IntegrationTests: XCTestCase {
     var db: DatabaseQueue!
     var appState: AppState!
     var doseRepo: DoseRepository!
-    var hydrationRepo: HydrationRepository!
-    var supplementRepo: SupplementLogRepository!
-    var exerciseRepo: ExerciseRepository!
 
     override func setUp() async throws {
         db = try DatabaseQueue()
@@ -23,18 +20,12 @@ final class IntegrationTests: XCTestCase {
         let profileRepo = UserProfileRepository(db: db)
         doseRepo = DoseRepository(db: db)
         let beverageRepo = BeverageRepository(db: db)
-        supplementRepo = SupplementLogRepository(db: db)
-        hydrationRepo = HydrationRepository(db: db)
-        exerciseRepo = ExerciseRepository(db: db)
         let planRepo = DailyPlanRepository(db: db)
 
         appState = AppState(
             profileRepo: profileRepo,
             doseRepo: doseRepo,
             beverageRepo: beverageRepo,
-            supplementRepo: supplementRepo,
-            hydrationRepo: hydrationRepo,
-            exerciseRepo: exerciseRepo,
             planRepo: planRepo
         )
     }
@@ -47,42 +38,18 @@ final class IntegrationTests: XCTestCase {
         c.cancel()
     }
 
-    func wait(for repo: HydrationRepository, timeout: TimeInterval = 2.0) {
-        let exp = expectation(description: "repo updated")
-        exp.assertForOverFulfill = false
-        let c = appState.$hydrationEntries.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: timeout)
-        c.cancel()
-    }
-
-    func wait(for repo: SupplementLogRepository, timeout: TimeInterval = 2.0) {
-        let exp = expectation(description: "repo updated")
-        exp.assertForOverFulfill = false
-        let c = appState.$supplementLogs.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: timeout)
-        c.cancel()
-    }
-
-    func wait(for repo: ExerciseRepository, timeout: TimeInterval = 2.0) {
-        let exp = expectation(description: "repo updated")
-        exp.assertForOverFulfill = false
-        let c = appState.$exerciseLogs.dropFirst().sink { _ in exp.fulfill() }
-        wait(for: [exp], timeout: timeout)
-        c.cancel()
-    }
-
     // Integration: full day workflow
     func testFullDayWorkflow() throws {
         var profile = try appState.getOrCreateProfile()
         profile.wakeTime = Calendar.current.date(from: DateComponents(hour: 7, minute: 0))!
         profile.sleepTime = Calendar.current.date(from: DateComponents(hour: 23, minute: 0))!
-        profile.stackCompounds = ["L-Theanine", "Creatine"]
+        profile.stackCompounds = ["Caffeine"]
         try appState.saveProfile(profile)
 
         let profileExp = expectation(description: "profile set")
         profileExp.assertForOverFulfill = false
         let pc = appState.$profile.dropFirst().sink { p in
-            if p?.stackCompounds.count == 2 { profileExp.fulfill() }
+            if p?.stackCompounds.count == 1 { profileExp.fulfill() }
         }
         wait(for: [profileExp], timeout: 2.0)
         pc.cancel()
@@ -90,35 +57,11 @@ final class IntegrationTests: XCTestCase {
         try appState.addDose(timestamp: Date(), caffeineMg: 95.0, beverageName: "Espresso")
         wait(for: doseRepo)
 
-        try appState.addHydration(amountMl: 250.0)
-        let hydExp = expectation(description: "hydration logged")
-        hydExp.assertForOverFulfill = false
-        let hc = hydrationRepo.$entries.dropFirst().sink { _ in hydExp.fulfill() }
-        wait(for: [hydExp], timeout: 2.0)
-        hc.cancel()
-
-        try appState.addSupplement(compoundName: "L-Theanine")
-        let supExp = expectation(description: "supplement logged")
-        supExp.assertForOverFulfill = false
-        let sc = supplementRepo.$logs.dropFirst().sink { _ in supExp.fulfill() }
-        wait(for: [supExp], timeout: 2.0)
-        sc.cancel()
-
-        try appState.addExercise(activityName: "Zone 2 Cardio")
-        let exExp = expectation(description: "exercise logged")
-        exExp.assertForOverFulfill = false
-        let ec = exerciseRepo.$logs.dropFirst().sink { _ in exExp.fulfill() }
-        wait(for: [exExp], timeout: 2.0)
-        ec.cancel()
-
         let summary = appState.summaryForDate(Date())
         XCTAssertEqual(summary.doseCount, 1)
         XCTAssertEqual(summary.totalCaffeineMg, 95.0)
-        XCTAssertEqual(summary.totalHydrationMl, 250.0)
-        XCTAssertEqual(summary.supplementCount, 1)
-        XCTAssertEqual(summary.exerciseCount, 1)
 
-        XCTAssertEqual(appState.profile?.stackCompounds, ["L-Theanine", "Creatine"])
+        XCTAssertEqual(appState.profile?.stackCompounds, ["Caffeine"])
     }
 
     // Integration: adding and removing doses
@@ -155,17 +98,8 @@ final class IntegrationTests: XCTestCase {
     func testValidationPreventsBadData() throws {
         XCTAssertThrowsError(try appState.addDose(timestamp: Date(), caffeineMg: -10))
         XCTAssertThrowsError(try appState.addDose(timestamp: Date(), caffeineMg: 2000))
-        XCTAssertThrowsError(try appState.addHydration(amountMl: 0))
-        XCTAssertThrowsError(try appState.addHydration(amountMl: 10000))
-        XCTAssertThrowsError(try appState.addSupplement(compoundName: ""))
-        XCTAssertThrowsError(try appState.addExercise(activityName: ""))
-        XCTAssertThrowsError(try appState.addExercise(activityName: "Running", durationMinutes: 0))
-        XCTAssertThrowsError(try appState.addExercise(activityName: "Running", durationMinutes: 500))
 
         XCTAssertEqual(appState.doses.count, 0)
-        XCTAssertEqual(appState.hydrationEntries.count, 0)
-        XCTAssertEqual(appState.supplementLogs.count, 0)
-        XCTAssertEqual(appState.exerciseLogs.count, 0)
     }
 
     // Integration: multi-day data isolation
@@ -231,7 +165,6 @@ final class IntegrationTests: XCTestCase {
         var profile = try appState.getOrCreateProfile()
         profile.sensitivity = "high"
         profile.metabolismRate = "slow"
-        profile.optimizationGoal = "deepSleep"
         profile.weight = 85.0
         try appState.saveProfile(profile)
 
@@ -245,7 +178,6 @@ final class IntegrationTests: XCTestCase {
 
         XCTAssertEqual(appState.profile?.sensitivity, "high")
         XCTAssertEqual(appState.profile?.metabolismRate, "slow")
-        XCTAssertEqual(appState.profile?.optimizationGoal, "deepSleep")
         XCTAssertEqual(appState.profile?.weight, 85.0)
     }
 

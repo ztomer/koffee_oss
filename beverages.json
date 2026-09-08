@@ -95,48 +95,6 @@
             "caffeine_mg": 20,
             "category": "Other",
             "icon": "Milk"
-        },
-        {
-            "name": "L-Theanine (200mg)",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Magnesium L-Threonate (2000mg)",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Magnesium Nighttime Powder",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Ashwagandha",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Vitamin B Complex (100mg)",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Rhodiola Rosea (200mg)",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
-        },
-        {
-            "name": "Theacrine (100mg)",
-            "caffeine_mg": 0,
-            "category": "Supplement",
-            "icon": "Supplement"
         }
     ]
 }

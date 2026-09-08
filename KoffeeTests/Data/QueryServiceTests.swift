@@ -9,40 +9,22 @@ final class QueryServiceTests: XCTestCase {
 
     var db: DatabaseQueue!
     var doseRepo: DoseRepository!
-    var hydrationRepo: HydrationRepository!
-    var supplementRepo: SupplementLogRepository!
-    var exerciseRepo: ExerciseRepository!
     var queryService: QueryService!
 
     override func setUp() async throws {
         db = try DatabaseQueue()
         try DatabaseManager.makeMigrator().migrate(db)
         doseRepo = DoseRepository(db: db)
-        hydrationRepo = HydrationRepository(db: db)
-        supplementRepo = SupplementLogRepository(db: db)
-        exerciseRepo = ExerciseRepository(db: db)
-        let planRepo = DailyPlanRepository(db: db)
-        queryService = QueryService(
-            doseRepo: doseRepo,
-            hydrationRepo: hydrationRepo,
-            supplementRepo: supplementRepo,
-            exerciseRepo: exerciseRepo
-        )
+        queryService = QueryService(doseRepo: doseRepo)
     }
 
     func testSummaryForToday() throws {
         try doseRepo.add(timestamp: Date(), caffeineMg: 95.0, beverageName: "Coffee")
         try doseRepo.add(timestamp: Date(), caffeineMg: 50.0, beverageName: "Tea")
-        try hydrationRepo.add(amountMl: 250.0)
-        try supplementRepo.add(compoundName: "Creatine")
-        try exerciseRepo.add(activityName: "Running", durationMinutes: 30)
 
         let summary = queryService.summaryForDate(Date())
         XCTAssertEqual(summary.doseCount, 2)
         XCTAssertEqual(summary.totalCaffeineMg, 145.0)
-        XCTAssertEqual(summary.totalHydrationMl, 250.0)
-        XCTAssertEqual(summary.supplementCount, 1)
-        XCTAssertEqual(summary.exerciseCount, 1)
     }
 
     func testCaffeineCurve() throws {
@@ -59,7 +41,6 @@ final class QueryServiceTests: XCTestCase {
     func testSummaryForEmptyDay() {
         let summary = queryService.summaryForDate(Date())
         XCTAssertEqual(summary.totalCaffeineMg, 0)
-        XCTAssertEqual(summary.totalHydrationMl, 0)
         XCTAssertEqual(summary.doseCount, 0)
     }
 

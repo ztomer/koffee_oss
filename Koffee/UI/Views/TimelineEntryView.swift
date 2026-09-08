@@ -52,15 +52,7 @@ struct TimelineEntryView: View {
     private var iconColor: Color {
         if isCompleted { return .green }
         if isSkipped { return .gray }
-        if entry.type == .supplement {
-            return colorForCompound(entry.title)
-        }
-        switch entry.type {
-        case .beverage: return .orange
-        case .physical: return .blue
-        case .hydration: return .cyan
-        case .supplement: return .purple
-        }
+        return .orange
     }
 
     private var titleColor: Color {

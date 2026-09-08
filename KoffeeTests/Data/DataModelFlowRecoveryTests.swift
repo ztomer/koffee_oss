@@ -23,7 +23,8 @@ extension DataModelFlowTests {
                 scheduledTime: startTime.addingTimeInterval(Double(i) * 10),
                 status: i % 3 == 0 ? .pending : .pending, // 1/3 approved
                 dayKey: dayKey,
-                compoundUuid: "supplement",
+                compoundUuid: "caffeine",
+                doseMg: 95,
             )
             try planRepo.save(item)
         }
@@ -62,7 +63,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
 
         do {
@@ -80,7 +82,7 @@ extension DataModelFlowTests {
         let item = planRepo.items.first { $0.id == nonExistent }
         XCTAssertNil(item)
 
-        let history = try supplementRepo.logsForDate(Date())
+        let history = try doseRepo.dosesForDate(Date())
         let found = history.first { $0.id == nonExistent }
         XCTAssertNil(found)
     }
@@ -99,7 +101,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -135,7 +138,7 @@ extension DataModelFlowTests {
         c3.cancel()
 
         // Verify only ONE history entry
-        let history = try supplementRepo.logsForDate(Date())
+        let history = try doseRepo.dosesForDate(Date())
         let matchingHistory = history.filter { $0.id == itemId }
         XCTAssertEqual(matchingHistory.count, 1, "Should have exactly one history entry")
     }

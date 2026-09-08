@@ -22,7 +22,8 @@ extension DataModelFlowTests {
                 scheduledTime: startTime.addingTimeInterval(Double(i) * 60),
                 status: .pending,
                 dayKey: dayKey,
-                compoundUuid: "supplement",
+                compoundUuid: "caffeine",
+                doseMg: 95,
             )
             try planRepo.save(item)
         }
@@ -58,7 +59,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: dayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(item)
 
@@ -92,7 +94,7 @@ extension DataModelFlowTests {
         let planItem = planRepo.items.first { $0.id == itemId }
         XCTAssertEqual(planItem?.status, .skipped)
 
-        let historyLogs = try supplementRepo.logsForDate(Date())
+        let historyLogs = try doseRepo.dosesForDate(Date())
         XCTAssertFalse(historyLogs.contains { $0.id == itemId })
     }
 
@@ -110,13 +112,13 @@ extension DataModelFlowTests {
             scheduledTime: yesterday,
             status: .taken,
             dayKey: yesterdayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(yesterdayItem)
 
         // Create yesterday's history with YESTERDAY's timestamp
-        let yesterdayLog = SupplementLogModel(id: "YESTERDAY-1-\(yesterdayKey)", compoundName: "YesterdayCompound",
-                                              timestamp: yesterday, status: PlanItemStatus.pending)
+        let yesterdayLog = DoseModel(id: "YESTERDAY-1-\(yesterdayKey)", timestamp: yesterday, caffeineMg: 95, beverageName: "Coffee")
         try testDB.db.write { db in try yesterdayLog.insert(db) }
 
         // Wait for plan item to appear
@@ -135,7 +137,7 @@ extension DataModelFlowTests {
         XCTAssertEqual(yesterdayItems.count, 1, "Yesterday plan should have 1 item")
         XCTAssertEqual(yesterdayItems.first?.status, .taken)
 
-        let yesterdayHistory = try supplementRepo.logsForDate(yesterday)
+        let yesterdayHistory = try doseRepo.dosesForDate(yesterday)
         XCTAssertEqual(yesterdayHistory.count, 1, "Yesterday history should have 1 entry")
         XCTAssertEqual(yesterdayHistory.first?.id, "YESTERDAY-1-\(yesterdayKey)")
 
@@ -146,7 +148,8 @@ extension DataModelFlowTests {
             scheduledTime: Date(),
             status: .pending,
             dayKey: todayKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(todayItem)
 
@@ -176,7 +179,7 @@ extension DataModelFlowTests {
         XCTAssertEqual(yesterdayItemsAfter.count, 1)
         XCTAssertEqual(yesterdayItemsAfter.first?.status, .taken)
 
-        let yesterdayHistoryAfter = try supplementRepo.logsForDate(yesterday)
+        let yesterdayHistoryAfter = try doseRepo.dosesForDate(yesterday)
         XCTAssertEqual(yesterdayHistoryAfter.count, 1)
         XCTAssertEqual(yesterdayHistoryAfter.first?.id, "YESTERDAY-1-\(yesterdayKey)")
 
@@ -200,7 +203,8 @@ extension DataModelFlowTests {
             scheduledTime: tomorrow,
             status: .pending,
             dayKey: tomorrowKey,
-            compoundUuid: "supplement",
+            compoundUuid: "caffeine",
+            doseMg: 95,
         )
         try planRepo.save(tomorrowItem)
 
@@ -266,7 +270,7 @@ extension DataModelFlowTests {
         let doses = try doseRepo.dosesForDate(futureDate)
         XCTAssertEqual(doses.count, 0)
 
-        let supplements = try supplementRepo.logsForDate(futureDate)
+        let supplements = try doseRepo.dosesForDate(futureDate)
         XCTAssertEqual(supplements.count, 0)
 
         let planItems = try planRepo.itemsForDay(futureDate)

@@ -58,16 +58,10 @@ struct TimelineGapView: View {
 
 enum EntryType {
     case beverage
-    case supplement
-    case physical
-    case hydration
 }
 
 enum EntrySource: Equatable {
     case loggedDose(String)       // from doses table - id
-    case loggedSupplement(String)  // from supplement_logs table - id
-    case loggedHydration(String)  // from hydration_entries table - id
-    case loggedExercise(String)    // from exercise_logs table - id
     case planItem(String)          // from daily_plan_items table - id
 }
 
@@ -83,12 +77,7 @@ struct ProtocolTimelineEntry: Identifiable {
     let source: EntrySource  // Track where this entry came from
 
     var icon: String {
-        switch type {
-        case .beverage: return "cup.and.saucer.fill"
-        case .supplement: return "pills.fill"
-        case .physical: return "figure.walk"
-        case .hydration: return "drop.fill"
-        }
+        "cup.and.saucer.fill"
     }
 }
 
@@ -97,8 +86,6 @@ struct ProtocolTimelineView: View {
 
     @State private var selectedEntry: ProtocolTimelineEntry?
     @State private var showingBeveragePicker = false
-    @State private var showingSupplementPicker = false
-    @State private var showingActivityPicker = false
 
     private var completedPlanItemIDs: Set<String> {
         appState.takenPlanItemIds
@@ -158,18 +145,6 @@ struct ProtocolTimelineView: View {
                 showingBeveragePicker = false
             }, onDismiss: { showingBeveragePicker = false })
         }
-        .sheet(isPresented: $showingSupplementPicker) {
-            AddSupplementSheet(appState: appState, onAdd: { compoundName in
-                try? appState.addSupplement(compoundName: compoundName)
-                showingSupplementPicker = false
-            }, onDismiss: { showingSupplementPicker = false })
-        }
-        .sheet(isPresented: $showingActivityPicker) {
-            AddExerciseSheet(appState: appState, onAdd: { activityName, duration in
-                try? appState.addExercise(activityName: activityName, durationMinutes: duration)
-                showingActivityPicker = false
-            }, onDismiss: { showingActivityPicker = false })
-        }
     }
 
     private var quickActionDock: some View {
@@ -180,30 +155,6 @@ struct ProtocolTimelineView: View {
                 color: .orange
             ) {
                 showingBeveragePicker = true
-            }
-
-            SidebarActionButton(
-                icon: "pills.fill",
-                label: "Supplement",
-                color: .green
-            ) {
-                showingSupplementPicker = true
-            }
-
-            SidebarActionButton(
-                icon: "figure.run",
-                label: "Exercise",
-                color: .cyan
-            ) {
-                showingActivityPicker = true
-            }
-
-            SidebarActionButton(
-                icon: "drop.fill",
-                label: "Water",
-                color: .blue
-            ) {
-                logWater()
             }
         }
         .padding(.horizontal, 12)
@@ -238,10 +189,6 @@ struct ProtocolTimelineView: View {
         )
     }
 
-    private func logWater() {
-        try? appState.addHydration(amountMl: 250.0)
-    }
-
     private var timelineEntries: [ProtocolTimelineEntry] {
         var entries: [ProtocolTimelineEntry] = []
 
@@ -252,9 +199,6 @@ struct ProtocolTimelineView: View {
 
         // Use AppState date methods
         let todayDoses = appState.dosesForDate(today)
-        let todayHydration = appState.hydrationForDate(today)
-        let todaySupplements = appState.supplementsForDate(today)
-        let todayExercise = appState.exercisesForDate(today)
         let todayPlan = appState.pendingPlanItemsToday
 
         // Actual logged items - only from today
@@ -287,93 +231,15 @@ struct ProtocolTimelineView: View {
             ))
         }
 
-        for entry in todayHydration {
-            entries.append(ProtocolTimelineEntry(
-                id: UUID(uuidString: entry.id) ?? UUID(),
-                scheduledTime: entry.timestamp,
-                type: .hydration,
-                title: "Water",
-                subtitle: "\(Int(entry.amountMl))ml",
-                explanation: "Logged water intake",
-                isSuggestion: false,
-                isLogged: true,
-                source: .loggedHydration(entry.id)
-            ))
-        }
-
-        for log in todaySupplements {
-            // Get the planned time from the plan item (if it exists)
-            let plannedTime: String? = {
-                if let planItem = appState.findPlanItem(byId: log.id) {
-                    return formatTime(planItem.scheduledTime)
-                }
-                return nil
-            }()
-
-            // Get dose amount for this compound
-            let compound = NootropicCompound(rawValue: log.compoundName)
-            let doseMg = compound?.optimalDoseMg ?? 0
-
-            let subtitle: String
-            if let planned = plannedTime {
-                subtitle = "\(Int(doseMg))mg (planned \(planned))"
-            } else if doseMg > 0 {
-                // For opportunistic supplements (not from plan), show dose + time
-                subtitle = "\(Int(doseMg))mg at \(formatTime(log.timestamp))"
-            } else {
-                // For custom compounds without dose
-                subtitle = formatTime(log.timestamp)
-            }
-
-            entries.append(ProtocolTimelineEntry(
-                id: UUID(uuidString: log.id) ?? UUID(),
-                scheduledTime: log.timestamp,
-                type: .supplement,
-                title: log.compoundName,
-                subtitle: subtitle,
-                explanation: "Logged \(log.compoundName) supplement",
-                isSuggestion: false,
-                isLogged: true,
-                source: .loggedSupplement(log.id)
-            ))
-        }
-
-        for log in todayExercise {
-            let duration = log.durationMinutes.map { "\($0)min" } ?? ""
-            entries.append(ProtocolTimelineEntry(
-                id: UUID(uuidString: log.id) ?? UUID(),
-                scheduledTime: log.timestamp,
-                type: .physical,
-                title: log.activityName,
-                subtitle: duration,
-                explanation: "Logged \(log.activityName)",
-                isSuggestion: false,
-                isLogged: true,
-                source: .loggedExercise(log.id)
-            ))
-        }
-
         // Plan items - only show pending (taken items are shown via history entries)
         for planItem in todayPlan {
-            let type: EntryType = planItem.compoundUuid == "caffeine" ? .beverage : .supplement
-
-            // Use the actual dose stored in the plan item
-            let subtitle: String
-            if planItem.doseMg > 0 {
-                subtitle = "\(Int(planItem.doseMg))mg"
-            } else if planItem.compoundUuid == "caffeine" {
-                subtitle = "\(Int(planItem.doseMg))mg"
-            } else {
-                subtitle = planItem.compoundName
-            }
-
             entries.append(ProtocolTimelineEntry(
                 id: UUID(uuidString: planItem.id) ?? UUID(),
                 scheduledTime: planItem.scheduledTime,
-                type: type,
+                type: .beverage,
                 title: planItem.compoundName,
-                subtitle: subtitle,
-                explanation: planItem.compoundUuid == "caffeine" ? "Planned caffeine dose" : "Planned \(planItem.compoundName)",
+                subtitle: "\(Int(planItem.doseMg))mg",
+                explanation: "Planned caffeine dose",
                 isSuggestion: true,
                 isLogged: false,
                 source: .planItem(planItem.id)
@@ -435,18 +301,6 @@ struct ProtocolTimelineView: View {
         case .loggedDose(let id):
             if let dose = appState.findDose(byId: id) {
                 try? appState.removeDose(dose)
-            }
-        case .loggedHydration(let id):
-            if let hydEntry = appState.findHydration(byId: id) {
-                try? appState.removeHydration(hydEntry)
-            }
-        case .loggedSupplement(let id):
-            if let log = appState.findSupplement(byId: id) {
-                try? appState.removeSupplement(log)
-            }
-        case .loggedExercise(let id):
-            if let log = appState.findExercise(byId: id) {
-                try? appState.removeExercise(log)
             }
         case .planItem(let id):
             // Skip plan item: mark as "skipped" in DB + delete history if was approved

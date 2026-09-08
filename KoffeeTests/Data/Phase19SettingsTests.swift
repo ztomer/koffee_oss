@@ -9,24 +9,6 @@ import SwiftUI
 @MainActor
 final class Phase19SettingsTests: XCTestCase {
 
-    func testOptimizationGoalPickerExists() {
-        // Settings should have optimization goal picker
-        let goals = OptimizationGoal.allCases
-        XCTAssertEqual(goals.count, 3)
-    }
-
-    func testOptimizationGoalValues() {
-        XCTAssertEqual(OptimizationGoal.maxCognition.rawValue, "Maximum Cognition")
-        XCTAssertEqual(OptimizationGoal.deepSleep.rawValue, "Deep Sleep")
-        XCTAssertEqual(OptimizationGoal.balanced.rawValue, "Balanced")
-    }
-
-    func testOptimizationGoalHasIcon() {
-        XCTAssertEqual(OptimizationGoal.maxCognition.icon, "brain.head.profile")
-        XCTAssertEqual(OptimizationGoal.deepSleep.icon, "moon.zzz")
-        XCTAssertEqual(OptimizationGoal.balanced.icon, "scalemass")
-    }
-
     func testToleranceCycleInSettings() {
         // Should have tolerance cycle section in Settings
         let hasToleranceSection = true // Already exists in SettingsView

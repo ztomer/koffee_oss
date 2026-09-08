@@ -19,11 +19,7 @@ final class TestDatabase {
     let profileRepo: UserProfileRepository
     let doseRepo: DoseRepository
     let beverageRepo: BeverageRepository
-    let supplementRepo: SupplementLogRepository
-    let hydrationRepo: HydrationRepository
-    let exerciseRepo: ExerciseRepository
     let planRepo: DailyPlanRepository
-    let biometricRepo: BiometricRepository
     let appState: AppState
 
     init() throws {
@@ -33,21 +29,13 @@ final class TestDatabase {
         profileRepo = UserProfileRepository(db: db)
         doseRepo = DoseRepository(db: db)
         beverageRepo = BeverageRepository(db: db)
-        supplementRepo = SupplementLogRepository(db: db)
-        hydrationRepo = HydrationRepository(db: db)
-        exerciseRepo = ExerciseRepository(db: db)
         planRepo = DailyPlanRepository(db: db)
-        biometricRepo = BiometricRepository(db: db)
 
         appState = AppState(
             profileRepo: profileRepo,
             doseRepo: doseRepo,
             beverageRepo: beverageRepo,
-            supplementRepo: supplementRepo,
-            hydrationRepo: hydrationRepo,
-            exerciseRepo: exerciseRepo,
-            planRepo: planRepo,
-            biometricRepo: biometricRepo
+            planRepo: planRepo
         )
     }
 }

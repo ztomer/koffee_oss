@@ -3,7 +3,6 @@ import LiquidContainer
 
 enum AppSection: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
-    case stack = "Stack Builder"
     case history = "History"
     case notifications = "Notifications"
     case settings = "Settings"
@@ -13,7 +12,6 @@ enum AppSection: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dashboard: return "chart.xyaxis.line"
-        case .stack: return "pills.fill"
         case .history: return "clock.fill"
         case .notifications: return "bell.fill"
         case .settings: return "gearshape.fill"
@@ -47,7 +45,6 @@ struct MainSplitView: View {
 
     @State private var selectedSection: AppSection = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var selectedCompound: NootropicCompound?
     @State private var showInspector: Bool = true
     @State private var caffeineAtBedtime: Double = 0
 
@@ -68,25 +65,6 @@ struct MainSplitView: View {
 
     var activeStimulantLoad: Double {
         appState.todayCaffeineTotal
-    }
-
-    var activeDepressantLoad: Double {
-        var load: Double = 0
-        let todaySupplements = appState.supplementsForDate(Date())
-        for log in todaySupplements {
-            if let compound = NootropicCompound(rawValue: log.compoundName) {
-                load += compound.optimalDoseMg * 0.2
-            }
-        }
-
-        let pendingSupplements = appState.pendingNonCaffeineItemsToday()
-        for item in pendingSupplements {
-            if let compound = NootropicCompound(rawValue: item.compoundName) {
-                load += compound.optimalDoseMg * 0.2
-            }
-        }
-
-        return load
     }
 
     var bedtimeStatus: String {
@@ -118,14 +96,6 @@ struct MainSplitView: View {
                     .font(.system(size: 10))
                     .foregroundStyle(.yellow)
                 Text("\(Int(activeStimulantLoad))mg")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-            }
-
-            HStack(spacing: 4) {
-                Image(systemName: "moon.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.purple)
-                Text("\(Int(activeDepressantLoad))mg")
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
             }
         }
@@ -175,7 +145,7 @@ struct MainSplitView: View {
     private var sidebarContent: some View {
         List(selection: $selectedSection) {
             Section("Koffee") {
-                ForEach([AppSection.dashboard, .stack, .history]) { section in
+                ForEach([AppSection.dashboard, .history]) { section in
                     NavigationLink(value: section) {
                         Label(section.rawValue, systemImage: section.icon)
                     }
@@ -198,31 +168,17 @@ struct MainSplitView: View {
         .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 250)
     }
 
-    private func addSupplement() {
-        // Trigger supplement picker
-    }
-
-    private func addExercise() {
-        // Trigger exercise picker
-    }
-
-    private func addWater() {
-        try? appState.addHydration(amountMl: 250)
-    }
-
     @ViewBuilder
     private var detailContent: some View {
         switch selectedSection {
         case .dashboard:
             DashboardView(appState: appState, columnVisibility: $columnVisibility, physicsEngine: sharedPhysicsEngine, window: nil)
-        case .stack:
-            StackView(appState: appState)
         case .history:
             HistoryView(appState: appState)
         case .notifications:
             NotificationsView(appState: appState)
         case .settings:
-            BiometricDashboardView(appState: appState)
+            SettingsView(appState: appState)
         }
     }
 }

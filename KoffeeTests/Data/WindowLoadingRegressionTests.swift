@@ -19,9 +19,6 @@ final class WindowLoadingRegressionTests: XCTestCase {
         let profileRepo = UserProfileRepository(db: db)
         let doseRepo = DoseRepository(db: db)
         let beverageRepo = BeverageRepository(db: db)
-        let supplementRepo = SupplementLogRepository(db: db)
-        let hydrationRepo = HydrationRepository(db: db)
-        let exerciseRepo = ExerciseRepository(db: db)
         let planRepo = DailyPlanRepository(db: db)
 
         // Verify profile exists before AppState creation (mimics app init sequence)
@@ -32,9 +29,6 @@ final class WindowLoadingRegressionTests: XCTestCase {
             profileRepo: profileRepo,
             doseRepo: doseRepo,
             beverageRepo: beverageRepo,
-            supplementRepo: supplementRepo,
-            hydrationRepo: hydrationRepo,
-            exerciseRepo: exerciseRepo,
             planRepo: planRepo
         )
 

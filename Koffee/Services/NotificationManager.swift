@@ -1,13 +1,11 @@
 import Foundation
 import UserNotifications
 
+/// Caffeine-only reminders: cutoff warning before bed and the morning
+/// first-coffee nudge. The former stack / hydration / compound reminders
+/// were removed in the coffee-only strip.
 class NotificationManager {
     private let notificationCenter = UNUserNotificationCenter.current()
-    private let optimizer: StackOptimizerEngine
-
-    init(optimizer: StackOptimizerEngine) {
-        self.optimizer = optimizer
-    }
 
     func requestPermission() async -> Bool {
         do {
@@ -15,37 +13,6 @@ class NotificationManager {
         } catch {
             print("Notification permission denied: \(error)")
             return false
-        }
-    }
-
-    func scheduleRecommendationNotifications(
-        recommendations: [ActionableRecommendation],
-        goal: OptimizationGoal
-    ) async {
-        await cancelAllKoffeeNotifications()
-
-        for recommendation in recommendations where recommendation.priority <= 2 {
-            guard let scheduledTime = recommendation.scheduledTime else { continue }
-
-            let content = UNMutableNotificationContent()
-            content.title = "\(recommendation.type.rawValue) \(recommendation.title)"
-            content.body = recommendation.message
-            content.sound = recommendation.priority == 1 ? .defaultCritical : .default
-
-            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: scheduledTime)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-
-            let request = UNNotificationRequest(
-                identifier: "koffee.\(recommendation.id.uuidString)",
-                content: content,
-                trigger: trigger
-            )
-
-            do {
-                try await notificationCenter.add(request)
-            } catch {
-                print("Failed to schedule notification: \(error)")
-            }
         }
     }
 
@@ -96,40 +63,17 @@ class NotificationManager {
         }
     }
 
-    func scheduleHydrationReminder(deficitMl: Double, intervalMinutes: Int = 60) async {
-        guard deficitMl > 200 else { return }
-
+    func scheduleCaffeineReminder(doseMg: Double, scheduledTime: Date) async {
         let content = UNMutableNotificationContent()
-        content.title = "Hydration Reminder"
-        content.body = "You're \(Int(deficitMl))ml behind. Drink 250ml now."
-        content.sound = .default
-
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: Double(intervalMinutes * 60), repeats: true)
-
-        let request = UNNotificationRequest(
-            identifier: "koffee.hydration.reminder",
-            content: content,
-            trigger: trigger
-        )
-
-        do {
-            try await notificationCenter.add(request)
-        } catch {
-            print("Failed to schedule hydration: \(error)")
-        }
-    }
-
-    func scheduleCompoundReminder(compound: NootropicCompound, scheduledTime: Date) async {
-        let content = UNMutableNotificationContent()
-        content.title = "Time for \(compound.rawValue)"
-        content.body = compound.intendedPurpose
+        content.title = "Time for coffee"
+        content.body = "\(Int(doseMg))mg caffeine scheduled now."
         content.sound = .default
 
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: scheduledTime)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let request = UNNotificationRequest(
-            identifier: "koffee.compound.\(compound.rawValue.lowercased())",
+            identifier: "koffee.caffeine.reminder",
             content: content,
             trigger: trigger
         )
@@ -137,7 +81,7 @@ class NotificationManager {
         do {
             try await notificationCenter.add(request)
         } catch {
-            print("Failed to schedule compound: \(error)")
+            print("Failed to schedule caffeine reminder: \(error)")
         }
     }
 

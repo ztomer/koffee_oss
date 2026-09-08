@@ -26,34 +26,11 @@ final class Phase21RegressionTests: XCTestCase {
         XCTAssertNotNil(planItems)
     }
 
-    func testAppStateSupplementLogsAccessible() {
-        let supplements = appState.supplementLogs
-        XCTAssertNotNil(supplements)
-    }
-
-    func testAppStateHydrationEntriesAccessible() {
-        let hydration = appState.hydrationEntries
-        XCTAssertNotNil(hydration)
-    }
-
-    func testAppStateExerciseLogsAccessible() {
-        let exercise = appState.exerciseLogs
-        XCTAssertNotNil(exercise)
-    }
-
     func testTimelineCombinesLoggedAndPlanned() {
         // Timeline should combine doses + plan items
         let hasLoggedDoses = true
         let hasPlanItems = true
         XCTAssertTrue(hasLoggedDoses && hasPlanItems)
-    }
-
-    func testQuickActionWaterLogsDirectly() {
-        // Water action should log directly
-        let testDB = try? TestDatabase()
-        let appState = testDB?.appState
-
-        XCTAssertNotNil(appState)
     }
 
     func testProtocolTimelineViewStructure() {

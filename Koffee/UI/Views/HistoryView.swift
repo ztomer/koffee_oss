@@ -4,19 +4,10 @@ struct DailyHistoryRecord: Identifiable {
     let id = UUID()
     let date: Date
     let totalCaffeineMg: Double
-    let totalHydrationMl: Double
-    let hydrationTargetMl: Double
-    let hydrationLoggedMl: Double
     let bedtimeCaffeineMg: Double
     let sleepRiskLevel: String
-    let stackCompounds: [String]
     let doseCount: Int
-    let supplementCount: Int
-    let exerciseCount: Int
     let doses: [DoseDetail]
-    let hydrationEntries: [HydrationDetail]
-    let exercises: [ExerciseDetail]
-    let supplements: [SupplementDetail]
 }
 
 struct DoseDetail: Identifiable {
@@ -24,26 +15,6 @@ struct DoseDetail: Identifiable {
     let time: Date
     let beverageName: String
     let caffeineMg: Double
-}
-
-struct HydrationDetail: Identifiable {
-    let id = UUID()
-    let time: Date
-    let amountMl: Double
-}
-
-struct ExerciseDetail: Identifiable {
-    let id = UUID()
-    let time: Date
-    let activityName: String
-    let durationMinutes: Int?
-}
-
-struct SupplementDetail: Identifiable {
-    let id = UUID()
-    let time: Date
-    let compoundName: String
-    let doseMg: Double?
 }
 
 struct HistoryView: View {
@@ -64,15 +35,6 @@ struct HistoryView: View {
 
         for dose in appState.doses {
             dates.insert(calendar.startOfDay(for: dose.timestamp))
-        }
-        for entry in appState.hydrationEntries {
-            dates.insert(calendar.startOfDay(for: entry.timestamp))
-        }
-        for log in appState.supplementLogs {
-            dates.insert(calendar.startOfDay(for: log.timestamp))
-        }
-        for log in appState.exerciseLogs {
-            dates.insert(calendar.startOfDay(for: log.timestamp))
         }
 
         return dates
@@ -100,44 +62,20 @@ struct HistoryView: View {
         let end = calendar.date(byAdding: .day, value: 1, to: start)!
 
         let doses = appState.dosesInRange(start: start, end: end)
-        let hydration = appState.hydrationInRange(start: start, end: end)
-        let supplements = appState.supplementsInRange(start: start, end: end)
-        let exercises = appState.exercisesInRange(start: start, end: end)
 
-        let hasData = !doses.isEmpty || !hydration.isEmpty || !supplements.isEmpty || !exercises.isEmpty
-        guard hasData else { return nil }
+        guard !doses.isEmpty else { return nil }
 
         let totalCaffeine = doses.reduce(0) { $0 + $1.caffeineMg }
-        let totalHydration = hydration.reduce(0) { $0 + $1.amountMl }
-        let stackCompounds = supplements.map { $0.compoundName }
 
         let doseDetails = doses.map { DoseDetail(time: $0.timestamp, beverageName: $0.beverageName ?? "Unknown", caffeineMg: $0.caffeineMg) }
-        let hydrationDetails = hydration.map { HydrationDetail(time: $0.timestamp, amountMl: $0.amountMl) }
-        let exerciseDetails = exercises.map { ExerciseDetail(time: $0.timestamp, activityName: $0.activityName, durationMinutes: $0.durationMinutes) }
-
-        // Get optimal dose for each supplement from NootropicCompound
-        let supplementDetails = supplements.map { supplement -> SupplementDetail in
-            let compound = NootropicCompound(rawValue: supplement.compoundName)
-            let doseMg = compound?.optimalDoseMg
-            return SupplementDetail(time: supplement.timestamp, compoundName: supplement.compoundName, doseMg: doseMg)
-        }
 
         return DailyHistoryRecord(
             date: start,
             totalCaffeineMg: totalCaffeine,
-            totalHydrationMl: totalHydration,
-            hydrationTargetMl: 2500,
-            hydrationLoggedMl: totalHydration,
             bedtimeCaffeineMg: totalCaffeine * 0.3,
             sleepRiskLevel: totalCaffeine > 200 ? "high" : (totalCaffeine > 100 ? "medium" : "low"),
-            stackCompounds: stackCompounds,
             doseCount: doses.count,
-            supplementCount: supplements.count,
-            exerciseCount: exercises.count,
-            doses: doseDetails,
-            hydrationEntries: hydrationDetails,
-            exercises: exerciseDetails,
-            supplements: supplementDetails
+            doses: doseDetails
         )
     }
 
@@ -249,14 +187,14 @@ struct HistoryView: View {
 
     private var emptyStateForDate: some View {
         VStack(spacing: 16) {
-            Image(systemName: "pills.fill")
+            Image(systemName: "cup.and.saucer.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
             Text("No data for \(dayString)")
                 .font(.system(size: 14))
                 .foregroundStyle(.secondary)
             if calendar.isDateInToday(selectedDate) {
-                Text("Log your first supplement to start tracking")
+                Text("Log your first coffee to start tracking")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
             }
@@ -321,73 +259,6 @@ struct HistoryDetailCard: View {
                                 Text("\(Int(dose.caffeineMg))mg")
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
-                if !record.supplements.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("SUPPLEMENTS TAKEN").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                        ForEach(record.supplements) { supplement in
-                            HStack {
-                                Text(formatTime(supplement.time))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.purple)
-                                Text(supplement.compoundName)
-                                    .font(.system(size: 11, weight: .medium))
-                                Spacer()
-                                if let dose = supplement.doseMg {
-                                    Text("\(Int(dose))mg")
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if !record.hydrationEntries.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("HYDRATION").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                        ForEach(record.hydrationEntries) { entry in
-                            HStack {
-                                Text(formatTime(entry.time))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.blue)
-                                Text("\(Int(entry.amountMl))ml")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                        }
-                        HStack {
-                            Text("Total: \(Int(record.hydrationLoggedMl))ml")
-                                .font(.system(size: 11, weight: .semibold))
-                            Text("of \(Int(record.hydrationTargetMl))ml target")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if !record.exercises.isEmpty {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("EXERCISE").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                        ForEach(record.exercises) { exercise in
-                            HStack {
-                                Text(formatTime(exercise.time))
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.green)
-                                Text(exercise.activityName)
-                                    .font(.system(size: 11, weight: .medium))
-                                if let duration = exercise.durationMinutes {
-                                    Spacer()
-                                    Text("\(duration)min")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
                             }
                         }
                     }
