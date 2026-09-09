@@ -12,7 +12,6 @@ extension AppState {
             return
         }
 
-        let calendar = DateHelper.calendar
         let now = DateHelper.now
         let dayKey = DailyPlanItemModel.dayKey(for: now)
         let wakeTime = profile.wakeTime

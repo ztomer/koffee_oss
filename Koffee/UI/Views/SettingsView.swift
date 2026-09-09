@@ -90,7 +90,7 @@ struct SettingsView: View {
 
     private var statPods: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("ATTRIBUTES", icon: "figure.stand")
+            sectionTitle("YOUR BODY", icon: "figure.stand")
 
             HStack(spacing: 12) {
                 StatPod(
@@ -143,7 +143,7 @@ struct SettingsView: View {
 
     private var engineBlock: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("THE ENGINE", icon: "gearshape.2.fill")
+            sectionTitle("CAFFEINE RESPONSE", icon: "gearshape.2.fill")
 
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -169,7 +169,7 @@ struct SettingsView: View {
                     .background(Color(nsColor: .separatorColor))
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("METABOLISM RATE")
+                    Text("METABOLISM SPEED")
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundStyle(.secondary)
 
@@ -185,6 +185,10 @@ struct SettingsView: View {
                             }
                         }
                     }
+
+                    Text("Speed relates to your CYP1A2 gene type.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -199,7 +203,7 @@ struct SettingsView: View {
 
     private var circadianBlock: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("CIRCADIAN PARAMETERS", icon: "clock.fill")
+            sectionTitle("SLEEP TIMES", icon: "clock.fill")
 
             HStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -238,7 +242,7 @@ struct SettingsView: View {
 
     private var toleranceBlock: some View {
         VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("TOLERANCE CYCLE", icon: "arrow.triangle.2.circlepath")
+            sectionTitle("TOLERANCE BREAK", icon: "arrow.triangle.2.circlepath")
 
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 8) {

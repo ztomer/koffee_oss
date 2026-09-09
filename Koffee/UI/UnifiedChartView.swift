@@ -9,6 +9,7 @@ struct CaffeineTimelineChart: View {
     let wakeTime: Date
     let sleepTime: Date
     let safeLimit: Double
+    let metabolism: MetabolismRate
 
     @State private var selectedTime: Date?
 
@@ -30,30 +31,30 @@ struct CaffeineTimelineChart: View {
             doses: doseTuples,
             from: wakeTime,
             to: endTime,
-            metabolism: MetabolismRate.medium
+            metabolism: metabolism
         )
     }
 
-    /// Caffeine level as percent of the safe bedtime limit.
-    private var normalizedData: [(time: Date, percent: Double, mg: Double)] {
-        guard safeLimit > 0 else { return [] }
-        return unifiedData.map { point in
+    /// Chart points in milligrams — the Y axis speaks mg, never percent-of-what.
+    private var chartData: [(time: Date, mg: Double)] {
+        unifiedData.map { point in
             let mg = point.compoundLevels[NootropicCompound.caffeine.rawValue] ?? point.totalLevel
-            return (point.time, mg / safeLimit * 100, mg)
+            return (point.time, mg)
         }
     }
 
     private var maxYValue: Double {
-        let overallMax = normalizedData.map { $0.percent }.max() ?? 30
-        return max(30, overallMax)
+        let overallMax = chartData.map { $0.mg }.max() ?? 60
+        return max(60, max(overallMax, safeLimit * 1.2))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if normalizedData.isEmpty {
+            if chartData.isEmpty {
                 emptyStateView
             } else {
                 chartView
+                chartLegendView
             }
 
             currentStatusView
@@ -71,7 +72,7 @@ struct CaffeineTimelineChart: View {
     }
 
     private var chartView: some View {
-        let data = normalizedData
+        let data = chartData
         let yMax = maxYValue
 
         let chartStart = data.first?.time ?? wakeTime
@@ -79,10 +80,10 @@ struct CaffeineTimelineChart: View {
 
         return Chart {
             ForEach(data, id: \.time) { point in
-                if point.percent > 0 {
+                if point.mg > 0 {
                     LineMark(
                         x: .value("Time", point.time),
-                        y: .value("Level", point.percent),
+                        y: .value("Caffeine", point.mg),
                         series: .value("Compound", NootropicCompound.caffeine.rawValue)
                     )
                     .foregroundStyle(.orange)
@@ -90,15 +91,15 @@ struct CaffeineTimelineChart: View {
                 }
             }
 
-            RuleMark(y: .value("Safe Limit", 100))
+            RuleMark(y: .value("Sleep limit", safeLimit))
                 .foregroundStyle(.red.opacity(0.5))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 5]))
 
-            if yMax > 100 {
+            if yMax > safeLimit {
                 RectangleMark(
                     xStart: .value("Start", wakeTime),
                     xEnd: .value("End", sleepTime),
-                    yStart: .value("Limit", 100),
+                    yStart: .value("Limit", safeLimit),
                     yEnd: .value("Max", yMax)
                 )
                 .foregroundStyle(.red.opacity(0.05))
@@ -128,18 +129,24 @@ struct CaffeineTimelineChart: View {
         }
         .chartYScale(domain: 0...yMax)
         .chartYAxis {
-            let steps = stride(from: 0, through: yMax, by: 25).map { $0 }
+            let step = yMax > 150 ? 50.0 : 25.0
+            let steps = stride(from: 0, through: yMax, by: step).map { $0 }
             AxisMarks(values: steps) { value in
                 AxisGridLine()
                 AxisValueLabel {
-                    if let percent = value.as(Double.self) {
-                        Text("\(Int(percent))%")
+                    if let mg = value.as(Double.self) {
+                        Text("\(Int(mg))")
                             .font(.system(size: 9))
                     }
                 }
             }
         }
-        .chartLegend(position: .bottom, alignment: .center, spacing: 10) {
+    }
+
+    /// Plain-SwiftUI legend: every region and line gets a swatch plus words,
+    /// so no distinction rides on hue alone and nothing can clip off-canvas.
+    private var chartLegendView: some View {
+        HStack(spacing: 12) {
             HStack(spacing: 4) {
                 Circle()
                     .fill(.orange)
@@ -148,14 +155,40 @@ struct CaffeineTimelineChart: View {
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             }
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(.red.opacity(0.7), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                    .frame(width: 12, height: 8)
+                Text("Sleep limit \(Int(safeLimit))mg")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(.red.opacity(0.25))
+                    .frame(width: 8, height: 8)
+                Text("Over sleep limit")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(.green.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                Text("Best focus")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.secondary)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(.top, 2)
     }
 
     private var currentStatusView: some View {
         let now = Date()
-        let currentData = normalizedData.first { $0.time >= now } ?? normalizedData.last
+        let currentData = chartData.first { $0.time >= now } ?? chartData.last
         let currentCaffeine = currentData?.mg ?? 0
-        let bedtimeData = normalizedData.last { $0.time <= sleepTime } ?? normalizedData.last
+        let bedtimeData = chartData.last { $0.time <= sleepTime } ?? chartData.last
         let bedtimeCaffeine = bedtimeData?.mg ?? 0
 
         // Calculate peak time (caffeine peaks at ~45 min)

@@ -227,7 +227,8 @@ var pendingCaffeine: Double {
                 doses: compositeDoses,
                 wakeTime: appState.profile?.wakeTime ?? Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!,
                 sleepTime: appState.profile?.sleepTime ?? Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!,
-                safeLimit: safeLimit
+                safeLimit: safeLimit,
+                metabolism: MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
             )
         }
         .padding(16)

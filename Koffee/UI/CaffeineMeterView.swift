@@ -32,17 +32,17 @@ struct CaffeineMeterView: View {
         VStack(spacing: 4) {
             Gauge(value: displayLevel, in: 0...(safeLimit * 2)) {
                 Image(systemName: "cup.and.saucer.fill")
-                    .font(.system(size: 10))
+                    .font(.system(size: 12))
             } currentValueLabel: {
                 Text("\(Int(level))")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
             }
             .gaugeStyle(.accessoryCircular)
             .tint(Gradient(colors: [.green, .yellow, .red]))
-            .frame(width: 40, height: 40)
+            .frame(width: 48, height: 48)
 
             Text(statusText)
-                .font(.system(size: 6, weight: .medium))
+                .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(statusColor)
         }
         .padding(6)

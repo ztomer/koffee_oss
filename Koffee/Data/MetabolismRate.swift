@@ -35,9 +35,18 @@ enum MetabolismRate: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .slow: return "Slow (CYP1A2 AA)"
+        case .slow: return "Slow"
         case .medium: return "Medium"
-        case .fast: return "Fast (CYP1A2 AC/CC)"
+        case .fast: return "Fast"
+        }
+    }
+
+    /// Gene-type hint shown as a caption, never as the option label.
+    var genotypeNote: String {
+        switch self {
+        case .slow: return "Often CYP1A2 AA type"
+        case .medium: return "Most common type"
+        case .fast: return "Often CYP1A2 AC or CC type"
         }
     }
 

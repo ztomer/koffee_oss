@@ -112,10 +112,11 @@ struct HistoryView: View {
                     Image(systemName: "chevron.left").font(.system(size: 14, weight: .semibold))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Previous day")
 
                 Spacer()
 
-                Text(dayOfWeekString).font(.system(size: 14, weight: .semibold))
+                Text(dayString).font(.system(size: 14, weight: .semibold))
 
                 Spacer()
 
@@ -127,38 +128,26 @@ struct HistoryView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(calendar.isDateInToday(selectedDate))
+                .accessibilityLabel("Next day")
             }
 
-            HStack {
-                Button {
-                    selectedMonth = max(1, selectedMonth - 1)
-                    if selectedMonth == 0 { selectedMonth = 12; selectedYear -= 1 }
-                    if let newDate = calendar.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: 1)) {
-                        selectedDate = newDate
+            Menu {
+                ForEach(1...12, id: \.self) { month in
+                    Button(monthName(month)) {
+                        selectedMonth = month
+                        if let newDate = calendar.date(from: DateComponents(year: selectedYear, month: month, day: 1)) {
+                            selectedDate = newDate
+                        }
                     }
-                } label: {
-                    Image(systemName: "chevron.left").font(.system(size: 12))
                 }
-                .buttonStyle(.plain)
-
-                Spacer()
-
-                Text(monthYearString).font(.system(size: 16, weight: .bold))
-
-                Spacer()
-
-                Button {
-                    selectedMonth = min(12, selectedMonth + 1)
-                    if selectedMonth == 13 { selectedMonth = 1; selectedYear += 1 }
-                    if let newDate = calendar.date(from: DateComponents(year: selectedYear, month: selectedMonth, day: 1)) {
-                        selectedDate = newDate
-                    }
-                } label: {
-                    Image(systemName: "chevron.right").font(.system(size: 12))
+            } label: {
+                HStack(spacing: 4) {
+                    Text(monthYearString).font(.system(size: 16, weight: .bold))
+                    Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain)
-                .disabled(calendar.isDateInToday(selectedDate))
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Jump to month")
 
             monthGrid
         }
@@ -193,15 +182,19 @@ struct HistoryView: View {
                         Button {
                             selectedDate = date
                         } label: {
-                            Text("\(dayNumber)")
-                                .font(.system(size: 12, weight: isSelected || isToday ? .bold : .regular))
-                                .frame(width: 24, height: 24)
-                                .background(isSelected ? Color.orange : (isToday ? Color.orange.opacity(0.3) : Color.clear))
-                                .foregroundStyle(isSelected || isToday ? .white : .primary)
-                                .clipShape(.circle)
+                            VStack(spacing: 1) {
+                                Text("\(dayNumber)")
+                                    .font(.system(size: 12, weight: isSelected || isToday || hasRecord ? .bold : .regular))
+                                    .frame(width: 24, height: 24)
+                                    .background(isSelected ? Color.orange : (isToday ? Color.orange.opacity(0.3) : Color.clear))
+                                    .foregroundStyle(isSelected || isToday ? .white : .primary)
+                                    .clipShape(.circle)
+                                Circle()
+                                    .fill(hasRecord ? (isSelected ? Color.white : Color.green) : Color.clear)
+                                    .frame(width: 4, height: 4)
+                            }
                         }
                         .buttonStyle(.plain)
-                        .overlay(Circle().stroke(hasRecord ? Color.green : Color.clear, lineWidth: 1))
                     }
                 }
             }
@@ -225,12 +218,6 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var dayOfWeekString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter.string(from: selectedDate)
-    }
-
     private var monthYearString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
@@ -239,8 +226,13 @@ struct HistoryView: View {
 
     private var dayString: String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
+        formatter.dateFormat = "EEEE, MMM d, yyyy"
         return formatter.string(from: selectedDate)
+    }
+
+    private func monthName(_ month: Int) -> String {
+        let formatter = DateFormatter()
+        return formatter.monthSymbols[month - 1]
     }
 
     private func updateYearMonth() {

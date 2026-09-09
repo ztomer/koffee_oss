@@ -80,28 +80,24 @@ struct MainSplitView: View {
     }
 
     var statusHeaderView: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 6) {
             Text("\(Int(currentCaffeine))mg")
-                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundStyle(.orange)
 
-            Text("|")
+            Text("·")
                 .foregroundStyle(.secondary)
 
-            Text("\(Int(caffeineAtBedtime))mg @ bed")
-                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+            Text("Bedtime \(Int(caffeineAtBedtime))mg")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 .foregroundStyle(statusColor)
 
-            Text("|")
+            Text("·")
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 4) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.blue)
-                Text("\(Int(pendingCaffeineTotal))mg")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-            }
+            Text("Planned \(Int(pendingCaffeineTotal))mg")
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(.blue)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -167,23 +163,9 @@ struct MainSplitView: View {
 
     private var sidebarContent: some View {
         List(selection: $selectedSection) {
-            Section("Koffee") {
-                ForEach([AppSection.dashboard, .history]) { section in
-                    NavigationLink(value: section) {
-                        Label(section.rawValue, systemImage: section.icon)
-                    }
-                }
-            }
-
-            Section("Tools") {
-                NavigationLink(value: AppSection.notifications) {
-                    Label("Notifications", systemImage: "bell")
-                }
-            }
-
-            Section("Settings") {
-                NavigationLink(value: AppSection.settings) {
-                    Label("Preferences", systemImage: "gearshape")
+            ForEach(AppSection.allCases) { section in
+                NavigationLink(value: section) {
+                    Label(section.rawValue, systemImage: section.icon)
                 }
             }
         }
