@@ -72,20 +72,12 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("CAFFEINIST")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
-                Text("Level 5 Optimizer")
+                Text("\(appState.doses.count) doses logged")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("XP")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text("12,450")
-                    .font(.system(size: 16, weight: .bold, design: .monospaced))
-            }
         }
         .padding(16)
         .background(

@@ -46,8 +46,11 @@ struct MainSplitView: View {
     @State private var selectedSection: AppSection = .dashboard
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showInspector: Bool = true
-    @State private var caffeineAtBedtime: Double = 0
     @State private var showingBeveragePicker = false
+
+    /// Bedtime projection comes from AppState (single source of truth).
+    /// A local @State copy here silently froze the toolbar at 0mg.
+    var caffeineAtBedtime: Double { appState.caffeineAtBedtime }
 
     init(appState: AppState, sharedPhysicsEngine: SharedPhysicsEngine) {
         self.appState = appState
