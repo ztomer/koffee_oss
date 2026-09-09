@@ -109,13 +109,19 @@ final class AppState: ObservableObject {
             debugLog("  dose: time=\(t.timeIntervalSince1970), mg=\(m)")
         }
 
-        // Current active caffeine level
-        currentCaffeineLevel = PharmacokineticEngine.calculateCaffeineAtTime(doses: doses, targetTime: now)
+        // Current active caffeine level (same decay core as the chart)
+        let metabolism = MetabolismRate(swiftDataValue: profile?.metabolismRate ?? "") ?? .medium
+        currentCaffeineLevel = calculateCaffeineLevel(doses: doses, at: now, metabolism: metabolism)
         debugLog("  currentCaffeineLevel = \(currentCaffeineLevel)")
 
-        // Caffeine at bedtime
+        // Caffeine at bedtime (shared funnel with dashboard + history)
         if let profile = profile {
-            caffeineAtBedtime = PharmacokineticEngine.calculateCaffeineAtTime(doses: doses, targetTime: profile.sleepTime)
+            caffeineAtBedtime = projectBedtimeCaffeine(
+                doses: doses,
+                wakeTime: profile.wakeTime,
+                sleepTime: profile.sleepTime,
+                metabolism: metabolism
+            )
             debugLog("  caffeineAtBedtime = \(caffeineAtBedtime)")
         }
 

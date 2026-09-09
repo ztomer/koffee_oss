@@ -1,22 +1,5 @@
 import Foundation
 
-// MARK: - Caffeine Protocol
-
-struct CaffeineProtocol {
-    struct RecalculationResult {
-        let dailySchedule: [Dose]
-        let pkCurve: PKCurveData
-        let adjustedHalfLife: Double
-        let notifications: [NotificationItem]
-    }
-
-    struct PKCurveData {
-        let points: [PKCurvePoint]
-        let totalAreaUnderCurve: Double
-        let optimalWindow: FocusWindow?
-    }
-}
-
 // MARK: - PK Curve Generation
 
 private enum PKConstants {
@@ -74,6 +57,35 @@ func calculateCaffeineLevel(
         total += remaining
     }
     return total
+}
+
+/// THE bedtime-projection funnel. Every surface that shows "caffeine at
+/// bedtime" (toolbar, dashboard oracle, history) must call this — never a
+/// local heuristic. Day-boundary handling: when sleep is at/before wake
+/// (overnight schedule), both move a day forward; doses logged before wake
+/// belong to the coming day.
+func projectBedtimeCaffeine(
+    doses: [(Date, Double)],
+    wakeTime: Date,
+    sleepTime: Date,
+    metabolism: MetabolismRate = .medium
+) -> Double {
+    var adjustedSleepTime = sleepTime
+    if sleepTime <= wakeTime {
+        adjustedSleepTime = Calendar.current.date(byAdding: .day, value: 1, to: sleepTime) ?? sleepTime
+    }
+
+    var adjustedDoses: [(Date, Double)] = []
+    for (doseTime, amount) in doses {
+        guard amount > 0 else { continue }
+        var t = doseTime
+        if t <= wakeTime {
+            t = Calendar.current.date(byAdding: .day, value: 1, to: t) ?? t
+        }
+        adjustedDoses.append((t, amount))
+    }
+
+    return calculateCaffeineLevel(doses: adjustedDoses, at: adjustedSleepTime, metabolism: metabolism)
 }
 
 func calculateConfidenceBand(
@@ -159,143 +171,6 @@ func generateUnifiedCurvePoints(
     }
 
     return points
-}
-
-// MARK: - Caffeine Calculator Core
-
-func calculateOptimal(
-    weightKg: Double,
-    wakeTime: Date,
-    sleepTime: Date,
-    sensitivity: Sensitivity
-) -> CaffeineResult {
-    let kgToLbs: Double = 2.20462
-    let maxDailyCaffeineMg: Double = 400.0
-    let mgCaffeinePerLb: Double = 2.72
-    let caffeineHalfLifeHours: Double = 5.0
-    let caffeineDelayAfterWakeMinutes: Double = 90
-    _ = caffeineHalfLifeHours
-    let minDoseIntervalHours: Double = 4.0
-
-    let weightLbs = weightKg * kgToLbs
-    let baseLimit = min(weightLbs * mgCaffeinePerLb, maxDailyCaffeineMg)
-    let dailyLimit = baseLimit * sensitivity.multiplier
-
-    var adjustedSleepTime = sleepTime
-    if sleepTime <= wakeTime {
-        adjustedSleepTime = Calendar.current.date(byAdding: .day, value: 1, to: sleepTime) ?? sleepTime
-    }
-
-    let safeAtBedtime = sensitivity.safeCaffeineAtBedtime
-    let bufferHours = sensitivity.hoursBeforeBedForLastDose
-
-    guard let latestSafeTime = Calendar.current.date(
-        byAdding: .hour,
-        value: -Int(bufferHours),
-        to: adjustedSleepTime
-    ) else {
-        return emptyCaffeineResult(dailyLimit: dailyLimit, sensitivity: sensitivity, sleepTime: adjustedSleepTime)
-    }
-
-    guard let firstDoseTime = Calendar.current.date(
-        byAdding: .minute,
-        value: Int(caffeineDelayAfterWakeMinutes),
-        to: wakeTime
-    ) else {
-        return emptyCaffeineResult(dailyLimit: dailyLimit, sensitivity: sensitivity, sleepTime: adjustedSleepTime)
-    }
-
-    guard latestSafeTime > firstDoseTime else {
-        return emptyCaffeineResult(dailyLimit: dailyLimit, sensitivity: sensitivity, sleepTime: adjustedSleepTime)
-    }
-
-    guard let secondDoseTime = Calendar.current.date(
-        byAdding: .hour,
-        value: -2,
-        to: latestSafeTime
-    ) else {
-        return emptyCaffeineResult(dailyLimit: dailyLimit, sensitivity: sensitivity, sleepTime: adjustedSleepTime)
-    }
-
-    let hoursBetweenDoses = secondDoseTime.timeIntervalSince(firstDoseTime) / 3600
-    let secondDoseAvailable = hoursBetweenDoses >= minDoseIntervalHours
-
-    var doses: [(Date, Double)] = []
-
-    if secondDoseAvailable {
-        let firstAmount = dailyLimit * 0.4
-        let secondAmount = dailyLimit * 0.6
-        doses.append((firstDoseTime, firstAmount))
-        doses.append((secondDoseTime, secondAmount))
-    } else {
-        let singleDose = dailyLimit * 0.6
-        doses.append((firstDoseTime, singleDose))
-    }
-
-    if doses.isEmpty {
-        return emptyCaffeineResult(dailyLimit: dailyLimit, sensitivity: sensitivity, sleepTime: adjustedSleepTime)
-    }
-
-    doses.sort { $0.0 < $1.0 }
-
-    let firstDose = Dose(
-        time: doses.count > 0 ? doses[0].0 : nil,
-        amount: doses.count > 0 ? doses[0].1 : 0
-    )
-    let secondDose = Dose(
-        time: doses.count > 1 ? doses[1].0 : nil,
-        amount: doses.count > 1 ? doses[1].1 : 0
-    )
-    let thirdDose = Dose(time: nil, amount: 0)
-
-    let latestSafeCaffeineTime = formatTime(latestSafeTime)
-
-    var warnings: [String] = []
-    let caffeineAtBedtime = calculateCaffeineAtTime(
-        doses: doses.map { ($0.0, $0.1) },
-        targetTime: adjustedSleepTime
-    )
-
-    if caffeineAtBedtime > safeAtBedtime {
-        warnings.append("For \(sensitivity.displayName.lowercased()) sensitivity, keep caffeine under \(Int(safeAtBedtime))mg "
-                     + "at bedtime. Current plan leaves ~\(Int(caffeineAtBedtime))mg.")
-    }
-
-    return CaffeineResult(
-        dailyLimit: dailyLimit,
-        firstDose: firstDose,
-        secondDose: secondDose,
-        thirdDose: thirdDose,
-        warnings: warnings,
-        latestSafeCaffeineTime: latestSafeCaffeineTime
-    )
-}
-
-private func emptyCaffeineResult(dailyLimit: Double, sensitivity: Sensitivity, sleepTime: Date) -> CaffeineResult {
-    let latestSafeTime = Calendar.current.date(
-        byAdding: .hour,
-        value: -Int(sensitivity.hoursBeforeBedForLastDose),
-        to: sleepTime
-    )
-    return CaffeineResult(
-        dailyLimit: dailyLimit,
-        firstDose: Dose(),
-        secondDose: Dose(),
-        thirdDose: Dose(),
-        warnings: [],
-        latestSafeCaffeineTime: latestSafeTime.map { formatTime($0) } ?? nil
-    )
-}
-
-func calculateCaffeineAtTime(doses: [(Date, Double)], targetTime: Date, halfLife: Double = 5.0) -> Double {
-    var total: Double = 0.0
-    for (doseTime, amount) in doses {
-        guard doseTime <= targetTime else { continue }
-        let hoursElapsed = targetTime.timeIntervalSince(doseTime) / 3600
-        let remaining = amount * pow(0.5, hoursElapsed / halfLife)
-        total += remaining
-    }
-    return total
 }
 
 func formatTime(_ date: Date) -> String {

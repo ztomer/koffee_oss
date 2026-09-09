@@ -69,14 +69,37 @@ struct HistoryView: View {
 
         let doseDetails = doses.map { DoseDetail(time: $0.timestamp, beverageName: $0.beverageName ?? "Unknown", caffeineMg: $0.caffeineMg) }
 
+        // Same bedtime funnel as toolbar + dashboard: project the day's
+        // doses against that day's sleep wall-time with the user's metabolism.
+        // Risk bands mirror the dashboard oracle (fractions of safeLimit).
+        let profile = appState.profile
+        let metabolism = MetabolismRate(swiftDataValue: profile?.metabolismRate ?? "") ?? .medium
+        let safeLimit = appState.safeCaffeineLimit
+        let wakeWallTime = profile?.wakeTime ?? calendar.date(bySettingHour: 7, minute: 0, second: 0, of: start)!
+        let sleepWallTime = profile?.sleepTime ?? calendar.date(bySettingHour: 23, minute: 0, second: 0, of: start)!
+        let wakeTime = transposedWallTime(from: wakeWallTime, onto: start, calendar: calendar)
+        let sleepTime = transposedWallTime(from: sleepWallTime, onto: start, calendar: calendar)
+        let bedtimeMg = projectBedtimeCaffeine(
+            doses: doses.map { ($0.timestamp, $0.caffeineMg) },
+            wakeTime: wakeTime,
+            sleepTime: sleepTime,
+            metabolism: metabolism
+        )
+
         return DailyHistoryRecord(
             date: start,
             totalCaffeineMg: totalCaffeine,
-            bedtimeCaffeineMg: totalCaffeine * 0.3,
-            sleepRiskLevel: totalCaffeine > 200 ? "high" : (totalCaffeine > 100 ? "medium" : "low"),
+            bedtimeCaffeineMg: bedtimeMg,
+            sleepRiskLevel: bedtimeMg > safeLimit ? "high" : (bedtimeMg > safeLimit * 0.5 ? "medium" : "low"),
             doseCount: doses.count,
             doses: doseDetails
         )
+    }
+
+    /// Projects a wall-clock time (hour/minute from the profile) onto a date.
+    private func transposedWallTime(from wallTime: Date, onto date: Date, calendar: Calendar) -> Date {
+        let comps = calendar.dateComponents([.hour, .minute, .second], from: wallTime)
+        return calendar.date(bySettingHour: comps.hour ?? 0, minute: comps.minute ?? 0, second: comps.second ?? 0, of: date) ?? date
     }
 
     private var dateNavigationHeader: some View {
@@ -268,8 +291,8 @@ struct HistoryDetailCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("SLEEP IMPACT").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                    let bedtimeRisk = record.bedtimeCaffeineMg > 100 ? "High" : (record.bedtimeCaffeineMg > 50 ? "Medium" : "Low")
-                    let riskColor: Color = bedtimeRisk == "High" ? .red : (bedtimeRisk == "Medium" ? .yellow : .green)
+                    let bedtimeRisk = record.sleepRiskLevel.capitalized
+                    let riskColor: Color = record.sleepRiskLevel == "high" ? .red : (record.sleepRiskLevel == "medium" ? .yellow : .green)
                     HStack {
                         Image(systemName: "moon.zzz").foregroundStyle(riskColor)
                         Text("\(Int(record.bedtimeCaffeineMg))mg at bedtime - \(bedtimeRisk) risk").font(.system(size: 11)).foregroundStyle(riskColor)

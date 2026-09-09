@@ -244,10 +244,11 @@ var pendingCaffeine: Double {
     }
 
     private func updateCaffeineLevel() {
-        let doses = appState.todayDoses.map { Dose(time: $0.timestamp, amount: $0.caffeineMg) }
+        let doses = appState.todayDoses.map { ($0.timestamp, $0.caffeineMg) }
         let wakeTime = appState.profile?.wakeTime ?? Date()
         let sleepTime = appState.profile?.sleepTime ?? Date()
-        caffeineAtBedtime = PharmacokineticEngine.calculateCaffeineAtBedtime(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime)
+        let metabolism = MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
+        caffeineAtBedtime = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
     }
 }
 

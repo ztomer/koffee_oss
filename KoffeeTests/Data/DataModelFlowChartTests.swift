@@ -297,4 +297,55 @@ extension DataModelFlowTests {
         // Cleanup - skip the plan item
         try appState.updatePlanItemStatus(id: "pending-1-\(dayKey)", status: .skipped)
     }
+
+    // MARK: - Bedtime Funnel Coherence (toolbar, dashboard, history share one backend)
+
+    @MainActor
+    func testBedtimeFunnelAgreesWithChartCore() {
+        let calendar = Calendar.current
+        let now = Date()
+        let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
+        let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
+        let doseTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: now)!
+        let doses = [(doseTime, 95.0)]
+
+        let viaFunnel = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: .medium)
+        let viaChartCore = calculateCaffeineLevel(doses: doses, at: sleepTime, metabolism: .medium)
+
+        XCTAssertEqual(viaFunnel, viaChartCore, accuracy: 0.001, "Funnel must equal the chart decay core on same-day schedules")
+        XCTAssertGreaterThan(viaFunnel, 0)
+    }
+
+    @MainActor
+    func testBedtimeFunnelRollsOvernightSchedule() {
+        let calendar = Calendar.current
+        let now = Date()
+        // Night-shift schedule: wake 23:00, sleep 06:00 next day
+        let wakeTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
+        let sleepTime = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: now)!
+        let doseTime = calendar.date(bySettingHour: 23, minute: 30, second: 0, of: now)!
+        let doses = [(doseTime, 95.0)]
+
+        let viaFunnel = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: .medium)
+        let rolledSleep = calendar.date(byAdding: .day, value: 1, to: sleepTime)!
+        let expected = calculateCaffeineLevel(doses: doses, at: rolledSleep, metabolism: .medium)
+
+        XCTAssertEqual(viaFunnel, expected, accuracy: 0.001, "Overnight sleep must roll a day forward")
+        XCTAssertGreaterThan(viaFunnel, 0, "Dose after wake must count toward that bedtime")
+    }
+
+    @MainActor
+    func testBedtimeFunnelRespectsMetabolism() {
+        let calendar = Calendar.current
+        let now = Date()
+        let wakeTime = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: now)!
+        let sleepTime = calendar.date(bySettingHour: 23, minute: 0, second: 0, of: now)!
+        let doseTime = calendar.date(bySettingHour: 9, minute: 0, second: 0, of: now)!
+        let doses = [(doseTime, 95.0)]
+
+        let slow = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: .slow)
+        let fast = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: .fast)
+
+        XCTAssertGreaterThan(slow, fast, "Slow metabolizers must project higher bedtime levels")
+    }
 }

@@ -3,6 +3,7 @@ import XCTest
 import GRDB
 import Combine
 import SwiftUI
+import AppKit
 
 // MARK: - UI Component Tests
 
@@ -37,5 +38,14 @@ final class UIComponentTests: XCTestCase {
         XCTAssertEqual(symbol(for: "Energy"), "bolt.fill")
         XCTAssertEqual(symbol(for: "Other"), "mug.fill")
         XCTAssertEqual(symbol(for: "coffee"), "cup.and.saucer.fill", "Mapping is case-insensitive")
+    }
+
+    func testBeverageSymbolsExistInSFSymbols() {
+        // Guards against mapping to a symbol name that renders as blank.
+        let categories = ["Coffee", "Tea", "Energy", "Other", "Weird"]
+        for category in categories {
+            let name = BeverageModel(name: "X", caffeineMg: 10, category: category, icon: category).symbolName
+            XCTAssertNotNil(NSImage(systemSymbolName: name, accessibilityDescription: nil), "\(name) must resolve in SF Symbols")
+        }
     }
 }

@@ -20,11 +20,16 @@ enum MetabolismRate: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Scales caffeine half-life: slow metabolizers clear caffeine over a
+    /// LONGER half-life (multiplier > 1), fast metabolizers shorter (< 1).
+    /// Every consumer must apply it in the half-life-lengthening direction:
+    /// `halfLife * multiplier`, `Vmax / multiplier`, `bufferHours * multiplier`.
+    /// (Fixed 2026-09: values were inverted — slow cleared faster.)
     var halfLifeMultiplier: Double {
         switch self {
-        case .slow: return 0.7
+        case .slow: return 1.4
         case .medium: return 1.0
-        case .fast: return 1.4
+        case .fast: return 0.7
         }
     }
 

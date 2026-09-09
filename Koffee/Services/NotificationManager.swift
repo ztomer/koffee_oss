@@ -17,7 +17,7 @@ class NotificationManager {
     }
 
     func scheduleCaffeineCutoff(sleepTime: Date, sensitivity: Sensitivity, metabolism: MetabolismRate) async {
-        let hoursBeforeBed = sensitivity.hoursBeforeBedForLastDose / metabolism.halfLifeMultiplier
+        let hoursBeforeBed = sensitivity.hoursBeforeBedForLastDose * metabolism.halfLifeMultiplier
         guard let cutoffTime = Calendar.current.date(byAdding: .hour, value: -Int(hoursBeforeBed), to: sleepTime) else { return }
 
         let content = UNMutableNotificationContent()
