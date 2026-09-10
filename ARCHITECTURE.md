@@ -37,10 +37,15 @@ Koffee/
 │   ├── Models/AllModels.swift       # GRDB record types
 │   ├── Repositories/AllRepositories.swift  # ValueObservation repos
 │   ├── AppState.swift              # Single ObservableObject coordinator
+│   ├── Models.swift                # PK core: calculateCaffeineLevel + projectBedtimeCaffeine
+│   ├── MetabolismRate.swift        # Half-life multipliers (slow clears slower)
+│   ├── Sensitivity.swift           # Bedtime limits + cutoff hours
 │   └── BeverageManager.swift        # Beverage loading
 ├── Domain/
-│   ├── PharmacokineticEngine.swift    # Michaelis-Menten kinetics
-│   └── BiologicalIntervention.swift   # Caffeine timeline events
+│   ├── BiologicalIntervention.swift   # Caffeine timeline events
+│   ├── BiologicalSex.swift
+│   ├── Constants.swift
+│   └── DateHelper.swift
 ├── Services/
 │   ├── NotificationManager.swift   # Caffeine cutoff + morning reminders
 │   └── MenuBarManager.swift
@@ -68,8 +73,9 @@ Koffee/
 | `BeverageModel` | Data | GRDB record for beverages |
 | `AppState` | Data | ObservableObject coordinator |
 | `Dose` | Domain | In-memory caffeine dose with compound + isPlanItem |
-| `NootropicCompound` | Domain | Caffeine-only compound enum (PK constants, timing, color) |
-| `CaffeineCalculator` | Domain | Caffeine calculations |
+| `NootropicCompound` | Data | Caffeine-only compound enum (PK constants, timing) |
+| `projectBedtimeCaffeine` | Data/Models.swift | THE bedtime funnel every surface must call |
+| `calculateCaffeineLevel` | Data/Models.swift | Half-life decay core |
 
 ## MVC Compliance
 

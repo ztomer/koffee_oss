@@ -40,16 +40,27 @@ struct AddBeverageSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Text("Add Beverage").font(.headline).padding()
-
             List(appState.beverages, id: \.id) { beverage in
                 Button {
                     selectedBeverageId = beverage.id
                 } label: {
                     HStack {
                         Image(systemName: beverage.symbolName).font(.title2).foregroundStyle(.orange)
-                        VStack(alignment: .leading) {
-                            Text(beverage.name).font(.headline)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(beverage.name).font(.headline)
+                                if beverage.id == appState.usualBeverageId {
+                                    Text("USUAL")
+                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(.blue)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.blue.opacity(0.12))
+                                        .clipShape(.capsule)
+                                }
+                            }
                             Text("\(beverage.caffeineMg)mg caffeine").font(.caption).foregroundStyle(.secondary)
+                            consequenceLine(for: beverage)
                         }
                         Spacer()
                         if selectedBeverageId == beverage.id {
@@ -72,5 +83,25 @@ struct AddBeverageSheet: View {
             }.padding()
         }
         .frame(width: 300, height: 400)
+    }
+
+    private func consequenceLine(for beverage: BeverageModel) -> some View {
+        let projected = appState.projectedBedtimeCaffeine(byAdding: beverage, at: selectedTime)
+        let limit = appState.safeCaffeineLimit
+        let status: String
+        let color: Color
+        if projected <= limit * 0.5 {
+            status = "Sleep ready"
+            color = .green
+        } else if projected <= limit {
+            status = "Monitor"
+            color = .yellow
+        } else {
+            status = "Over"
+            color = .red
+        }
+        return Text("bedtime \(Int(projected))mg · \(status)")
+            .font(.caption)
+            .foregroundStyle(color)
     }
 }

@@ -44,6 +44,12 @@ struct HistoryView: View {
         VStack(spacing: 16) {
             dateNavigationHeader
 
+            if appState.consecutiveMorningStreak > 0 {
+                Text(streakLine(appState.consecutiveMorningStreak))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.orange)
+            }
+
             if let record = historyRecordForSelectedDate {
                 HistoryDetailCard(record: record)
             } else {
@@ -213,6 +219,10 @@ struct HistoryView: View {
                 Text("Log your first coffee to start tracking")
                     .font(.system(size: 11))
                     .foregroundStyle(.orange)
+                Button("Log coffee") {
+                    NotificationCenter.default.post(name: .addDose, object: nil)
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

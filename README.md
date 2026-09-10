@@ -3,8 +3,10 @@
 macOS app for calculating optimal caffeine intake, built with SwiftUI + GRDB.
 
 ```bash
-./build.sh        # Build
-open Koffee.xcodeproj  # Open in Xcode
+./build.sh      # Generate + build
+./run.sh        # Build + run (opens Koffee.app)
+./test.sh       # Full test suite (LiquidContainer + app)
+./tools/gate.sh --full  # House gates (build, tests, swiftlint, structure)
 ```
 
 ## Project Tree
@@ -17,10 +19,11 @@ Koffee/
 │   ├── Models/        # GRDB models
 │   ├── Repositories/  # Data access layer
 │   └── *.swift        # Core types
-├── Domain/            # Business logic
-│   ├── CaffeineCalculator.swift
-│   ├── PharmacokineticEngine.swift
-│   └── StackOptimizerEngine.swift
+├── Domain/            # Scheduling helpers (no PK math here)
+│   ├── BiologicalIntervention.swift
+│   ├── BiologicalSex.swift
+│   ├── Constants.swift
+│   └── DateHelper.swift
 ├── Services/          # Notifications, auth, etc
 └── UI/
     ├── Core/          # MainSplitView, Design
@@ -39,21 +42,22 @@ View -> AppState -> Repository -> GRDB SQLite
 | Type | Location | Purpose |
 |------|----------|---------|
 | AppState | Data/ | Single source of truth |
-| NootropicCompound | Data/ | Stack compounds enum |
-| PharmacokineticEngine | Domain/ | Caffeine PK calc |
+| DoseModel / BeverageModel | Data/Models/ | GRDB records |
+| `projectBedtimeCaffeine` | Data/Models.swift | THE bedtime-projection funnel (one decay core) |
+| `calculateCaffeineLevel` | Data/Models.swift | Half-life decay core (halfLife * metabolism multiplier) |
+| MetabolismRate / Sensitivity | Data/ | Half-life direction + bedtime limits |
 | DoseRepository | Data/Repositories/ | Dose CRUD |
 
 ## Database Tables
 
-`doses`, `supplement_logs`, `hydration_entries`, `exercise_logs`, `daily_plan_items`, `user_profile`, `beverages`
+`doses`, `daily_plan_items`, `user_profile`, `beverages`
 
 ## Scripts
 
 | Command | What it does |
 |---------|--------------|
-| `size_report.sh` | File sizes, count >500 |
-| `find_type.sh Type` | Where type defined |
-| `grep.sh "pat"` | Search with context |
-| `quick_build.sh` | Fast compile check |
-| `project_overview.sh` | Structure summary |
-| `dep_graph.sh` | Dependencies |
+| `./build.sh` | xcodegen + build |
+| `./run.sh` | Build + open Koffee.app |
+| `./test.sh` | LiquidContainer + app test suites |
+| `./clean.sh` | Remove DerivedData + build artifacts |
+| `tools/gate.sh --full` | House gates (structure, swift, lint) |

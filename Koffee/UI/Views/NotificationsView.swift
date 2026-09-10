@@ -44,9 +44,15 @@ struct NotificationsView: View {
                 Toggle(isOn: Binding(
                     get: { appState.profile?.notificationsEnabled ?? true },
                     set: { newValue in
+                        let wasEnabled = appState.profile?.notificationsEnabled ?? false
                         if var profile = appState.profile {
                             profile.notificationsEnabled = newValue
                             try? appState.saveProfile(profile)
+                        }
+                        if newValue && !wasEnabled {
+                            Task {
+                                _ = await NotificationManager().requestPermission()
+                            }
                         }
                     }
                 )) {
@@ -96,6 +102,9 @@ struct NotificationsView: View {
             sectionTitle("SCHEDULED", icon: "calendar")
 
             if appState.profile?.notificationsEnabled ?? false {
+                Text(schedulePreviewLine)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
                 reminderList
             } else {
                 Text("Enable reminders to see schedule")
@@ -109,6 +118,20 @@ struct NotificationsView: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(.ultraThinMaterial)
+        )
+    }
+
+    private var schedulePreviewLine: String {
+        let pending = appState.pendingPlanItemsTodayByCompound("caffeine")
+            .sorted { $0.scheduledTime < $1.scheduledTime }
+        let profile = appState.profile
+        let sensitivity = Sensitivity(swiftDataValue: profile?.sensitivity ?? "") ?? .medium
+        let metabolism = MetabolismRate(swiftDataValue: profile?.metabolismRate ?? "") ?? .medium
+        return nextNudgeLine(
+            pending: pending,
+            sleepTime: profile?.sleepTime,
+            sensitivity: sensitivity,
+            metabolism: metabolism
         )
     }
 
@@ -168,4 +191,26 @@ struct NotificationsView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+}
+
+/// Live SCHEDULED preview. Pure for testing: next pending item wins, else the
+/// computed caffeine cutoff, else a warm empty line. Never hardcoded times.
+func nextNudgeLine(
+    pending: [DailyPlanItemModel],
+    sleepTime: Date?,
+    sensitivity: Sensitivity,
+    metabolism: MetabolismRate
+) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm"
+    if let next = pending.sorted(by: { $0.scheduledTime < $1.scheduledTime }).first {
+        return "Next nudge: \(formatter.string(from: next.scheduledTime)) — \(next.compoundName) \(Int(next.doseMg))mg"
+    }
+    if let sleep = sleepTime {
+        let hours = sensitivity.hoursBeforeBedForLastDose * metabolism.halfLifeMultiplier
+        if let cutoff = Calendar.current.date(byAdding: .minute, value: -Int(hours * 60), to: sleep) {
+            return "Next nudge: \(formatter.string(from: cutoff)) cutoff"
+        }
+    }
+    return "All quiet — your next nudge will appear here."
 }

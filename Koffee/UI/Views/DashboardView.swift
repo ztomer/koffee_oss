@@ -9,6 +9,8 @@ struct DashboardView: View {
 
     @State private var caffeineAtBedtime: Double = 0
     @State private var bubbleStates: [BubbleState] = BubbleGenerator.generate(count: 30, width: 400, height: 300)
+    @State private var lastDoseCount: Int = 0
+    @State private var lastBubbleBucket: Int = -1
     @State private var lastWindowPos: CGPoint?
     @State private var trackedWindow: NSWindow?
 
@@ -90,11 +92,12 @@ var pendingCaffeine: Double {
                 }
                 .padding(16)
             }
-            .background(.ultraThinMaterial)
         }
         .onAppear {
             debugLog("DashboardView onAppear - physicsEngine.engine.containerAccelX=\(physicsEngine.engine.containerAccelX)")
             updateCaffeineLevel()
+            lastDoseCount = appState.doses.count
+            rescaleBubbles(force: true)
 
             // Add ambient physics animation - tiny continuous waves
             Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
@@ -102,6 +105,16 @@ var pendingCaffeine: Double {
                 physicsEngine.engine.containerAccelX += randomForce
                 debugLog("DashboardView: ambient physics slosh, accelX now: \(physicsEngine.engine.containerAccelX)")
             }
+        }
+        .onChange(of: appState.doses.count) { _, newCount in
+            if newCount > lastDoseCount {
+                physicsEngine.engine.containerAccelX += 2.0
+            }
+            lastDoseCount = newCount
+            rescaleBubbles()
+        }
+        .onChange(of: fillRatio) { _, _ in
+            rescaleBubbles()
         }
         .onChange(of: appState.doses) { _, _ in
             updateCaffeineLevel()
@@ -158,13 +171,14 @@ var pendingCaffeine: Double {
                         .frame(width: 40, height: 40)
                         .background(bedtimeStatusColor.opacity(0.2))
                         .clipShape(.circle)
+                        .symbolEffect(.bounce, value: bedtimeStatusTitle)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(bedtimeStatusTitle)
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.primary)
 
-                        Text("\(Int(caffeineAtBedtime))mg projected at bedtime (limit \(Int(safeLimit))mg)")
+                        Text(oracleSubtitle)
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -219,6 +233,10 @@ var pendingCaffeine: Double {
         caffeineAtBedtime <= safeLimit * 0.5 ? .green : (caffeineAtBedtime <= safeLimit ? .yellow : .red)
     }
 
+    private var oracleSubtitle: String {
+        oracleLine(bedtimeMg: caffeineAtBedtime, limit: safeLimit)
+    }
+
     // MARK: - Hero Section (Chart)
 
     private var heroSection: some View {
@@ -251,6 +269,33 @@ var pendingCaffeine: Double {
         let metabolism = MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
         caffeineAtBedtime = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
     }
+
+    private func rescaleBubbles(force: Bool = false) {
+        let bucket = Int((min(max(fillRatio, 0), 1) * 10).rounded())
+        guard force || bucket != lastBubbleBucket else { return }
+        lastBubbleBucket = bucket
+        bubbleStates = BubbleGenerator.generate(count: bubbleCount(forFillRatio: fillRatio), width: 400, height: 300)
+    }
+}
+
+// MARK: - Oracle copy (pure, testable)
+/// Per-state oracle line. Numbers stay honest: every state names the bedtime mg.
+func oracleLine(bedtimeMg: Double, limit: Double) -> String {
+    let mg = Int(bedtimeMg)
+    if bedtimeMg <= limit * 0.5 {
+        return "Thanks for keeping it early — \(mg)mg at bedtime."
+    } else if bedtimeMg <= limit {
+        return "Still wired at \(mg)mg by bedtime — easy on the next cup."
+    } else {
+        return "Put the pot down — \(mg)mg at bedtime over the \(Int(limit))mg limit."
+    }
+}
+
+/// Idle bubble count scales with fill ratio using the existing generator.
+/// Pure for testing: 20 empty … 40 full.
+func bubbleCount(forFillRatio ratio: Double) -> Int {
+    let clamped = min(max(ratio, 0), 1)
+    return 20 + Int((clamped * 20).rounded())
 }
 
 // MARK: - Stat Widget
