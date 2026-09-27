@@ -218,7 +218,6 @@ extension DataModelFlowTests {
     func testDashboard_EmptyTimeline_NoGraphData() throws {
         let calendar = Calendar.current
         let now = Date()
-        let dayKey = calendar.dateComponents([.year, .month, .day], from: now).description
 
         // Verify: No doses, no plan items = empty chart
         let doses: [(Date, Double)] = []

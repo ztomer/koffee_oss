@@ -96,7 +96,6 @@ extension DataModelFlowTests {
     func testTimeEdgeCase_Midnight() throws {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let tomorrow = calendar.date(byAdding: .day, value: 1, to: today)!
         let dayKey = calendar.dateComponents([.year, .month, .day], from: today).description
 
         // Create item at midnight

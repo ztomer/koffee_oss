@@ -115,7 +115,6 @@ public struct LiquidContainerView<Content: View>: View {
         band: LayerBand,
         intTime: Double
     ) {
-        let surfaceY = band.surfaceY
         let layerTopY = band.topY
         let layerBottomY = band.bottomY
         let layerHeight = layerBottomY - layerTopY

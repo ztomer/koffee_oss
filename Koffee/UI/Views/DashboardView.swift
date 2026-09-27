@@ -98,9 +98,14 @@ var pendingCaffeine: Double {
             updateCaffeineLevel()
             lastDoseCount = appState.doses.count
             rescaleBubbles(force: true)
-
-            // Add ambient physics animation - tiny continuous waves
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+        }
+        .task {
+            // Ambient physics: tiny continuous waves. A task, not a repeating Timer: it runs on the
+            // main actor that owns this state, and ends when the view goes away. The Timer it
+            // replaces mutated main-actor state from a Sendable closure, and a new one was started
+            // on every appearance and never stopped.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
                 let randomForce = Double.random(in: -0.3...0.3)
                 physicsEngine.engine.containerAccelX += randomForce
                 debugLog("DashboardView: ambient physics slosh, accelX now: \(physicsEngine.engine.containerAccelX)")

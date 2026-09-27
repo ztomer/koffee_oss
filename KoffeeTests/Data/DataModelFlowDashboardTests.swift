@@ -12,7 +12,6 @@ extension DataModelFlowTests {
     func testDashboard_StimulantLoadEmpty() throws {
         // Empty timeline should have 0 stimulant load
         let calendar = Calendar.current
-        let dayKey = calendar.dateComponents([.year, .month, .day], from: Date()).description
 
         // No doses, no pending plan items
         let doses = appState.doses.filter { calendar.isDateInToday($0.timestamp) }

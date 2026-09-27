@@ -332,7 +332,6 @@ public struct BubbleGenerator {
         let actualCount = Int(CGFloat(count) * density)
         return (0..<actualCount).map { i in
             let seed = Int.random(in: 0...10000)
-            let yRange = heightFraction * 0.15
             return BubbleState(
                 x: CGFloat(seed % Int(width - 20)) + 10,
                 baseY: CGFloat((seed / 100) % Int(heightFraction * 650 * 0.15)) + 5,
