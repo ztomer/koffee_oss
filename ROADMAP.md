@@ -97,10 +97,6 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   failure path). Route through the app's `debugLog` / a logger so a failure is
   visible in the log the rest of the app writes. *DONE WHEN:* `rg 'print\('
   Koffee` is empty, gated.
-- **G4. A stale `.goh-tree.lock`** (2026-09-26, pid 76905 long dead) sits in the
-  root, ignored by the global gitignore. Today's gate ran over it, so goh
-  handles a dead holder; trash the file. (Recorded so nobody reads it as a live
-  run.)
 
 ## Phase 2 — product (only after Phase 0)
 
@@ -133,7 +129,9 @@ forecast and quick-log. Size **M** each.
   `.opencode/`; removed and ignored in this commit.
 - Claude memory / desktop sessions — none for this repo (searched "koffee").
 - Antigravity, Gemini CLI — none for this repo.
-- git — `main` only, level with `origin`; no worktrees.
+- git — `main` only, level with `origin`; no worktrees. A stale
+  `.goh-tree.lock` (2026-09-26, holder pid long dead, globally ignored) was
+  trashed; the gate had already run over it.
 - `RUSTIFICATION_ROADMAP.md` (Projects root) — lists `koffee_oss` as
   never-in-scope (stays native Swift). No item.
 - `ROADMAP-consolidated.md` (Projects root) — no koffee_oss entries.
