@@ -26,7 +26,9 @@ info "Running Koffee app tests..."
 xcodebuild test -project Koffee.xcodeproj -scheme KoffeeTests -destination 'platform=macOS' 2>&1 | tee /tmp/koffee_test_app.log
 
 # Check for actual test failures in the output (xcodebuild exit code is unreliable with test hosts)
-if grep -q "with [1-9][0-9]* failure" /tmp/koffee_test_app.log || grep -q "Testing failed:" /tmp/koffee_test_app.log | grep -v "TEST FAILED"; then
+testing_failed="$(grep "Testing failed:" /tmp/koffee_test_app.log || true)"
+if grep -q "with [1-9][0-9]* failure" /tmp/koffee_test_app.log \
+	|| { [ -n "$testing_failed" ] && grep -qv "TEST FAILED" <<< "$testing_failed"; }; then
 	err "Koffee app tests failed"
 	TOTAL_FAILURES=$((TOTAL_FAILURES + 1))
 else
@@ -49,9 +51,9 @@ if [ $TOTAL_FAILURES -eq 0 ]; then
 	ok "All test suites passed!"
 	exit 0
 else
-	die "$TOTAL_FAILURES test suite(s) failed"
-	echo ""
 	echo "Failures:"
-	grep -E "error:|failed.*failure" /tmp/koffee_test_app.log | head -20
-	exit 1
+	failures="$(grep -E "error:|failed.*failure" /tmp/koffee_test_app.log || true)"
+	head -n 20 <<< "$failures"
+	echo ""
+	die "$TOTAL_FAILURES test suite(s) failed"
 fi

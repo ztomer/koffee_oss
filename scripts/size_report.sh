@@ -3,7 +3,8 @@
 cd "$(dirname "$0")/.."
 
 echo "=== Swift File Sizes (sorted largest) ==="
-rtk wc -l Koffee/**/*.swift 2>/dev/null | sort -rn | head -20
+sizes="$(rtk wc -l Koffee/**/*.swift 2>/dev/null | sort -rn)"
+head -n 20 <<< "$sizes"
 
 echo ""
 echo "=== Files over 500 lines ==="

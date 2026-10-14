@@ -13,4 +13,5 @@ rtk grep -n "^struct $1\|^enum $1\|^class $1\|^func $1" Koffee/ 2>/dev/null
 
 echo ""
 echo "=== Usages: $1 ==="
-rtk grep "$1" Koffee/ | grep -v "^struct \|^enum \|^class \|^func " | head -15
+usages="$(rtk grep "$1" Koffee/ | grep -v "^struct \|^enum \|^class \|^func ")"
+head -n 15 <<< "$usages"
