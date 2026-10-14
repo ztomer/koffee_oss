@@ -28,46 +28,14 @@ must go red once before it is trusted green.
 (hooks `57568df` + this plan) and has no upstream configured. goh v0.27.0
 turned `tools/gate.sh --full` red (Phase 0).
 
-## Phase 0 — wire in goh 0.27.0
+## Phase 0 — wire in goh 0.27.0: closed 2026-10-14
 
-Goal: `tools/gate.sh --full` green at HEAD and pushed. Measured 2026-10-14
-at `57568df` (goh `51d31a5`): structural is red at its first failing step;
-with that neutralised in a scratch worktree of HEAD, the swift gate is red
-there too, and green once the project is generated (47 s). Exit: W.1-W.4
-closed. Size **S**, one short session.
+`tools/gate.sh --full` green at `6129495`, pushed (pre-push 46 s).
 
-**W.1 Red: `no early-exit pipe under pipefail`** — 11 sites in 8 of 18 shell
-sources: `scripts/dep_graph.sh:19,22`, `scripts/find_type.sh:16`,
-`scripts/grep.sh:11`, `scripts/lint.sh:10,14,19`,
-`scripts/project_overview.sh:27`, `scripts/run_tests.sh:18`,
-`scripts/size_report.sh:6`, `test.sh:55` (all `| head -N`). Rewrite each to
-`out="$(producer)"; head -n N <<< "$out"`, or delete a script nothing uses.
-*Acceptance:* the step green with no seed.
-
-**W.2 Red in the pushed export: `swift: xcodebuild test (-scheme
-KoffeeTests)`** — `xcodebuild: error: 'Koffee.xcodeproj' does not exist.`
-The project is xcodegen output and gitignored (`.gitignore:2`), and the
-reinstalled pre-push runs the gate in a clean worktree of the pushed
-commit, where it was never generated. Fix: `tools/gate.sh --full` runs
-`xcodegen generate` before `swift_gate.sh` (not `GOH_EXPORT_KEEP`, which
-would carry a stale generated project into the gate). *Acceptance:* the
-gate green in a fresh `git worktree add --detach <dir> HEAD`.
-
-**W.3 Set the scanner floors.** Printed 2026-10-14:
-`GOH_EMOJI_MIN_FILES=146 GOH_CONFLICT_MARKERS_MIN_FILES=147
-GOH_FILE_LENGTH_MIN_FILES=116 GOH_SECRETS_MIN_FILES=146
-GOH_SHELL_LINT_MIN_FILES=13 GOH_EARLY_EXIT_PIPE_MIN_FILES=18
-GOH_DEAD_AFTER_EXEC_MIN_FILES=18 GOH_BARE_HOOK_INDEX_MIN_FILES=18
-GOH_BARE_PYTHON_MIN_FILES=6 GOH_UNREAPED_SPAWN_MIN_FILES=3` (read in the
-scratch worktree, which carried one extra untracked seed file). Paste each
-into `.gatesrc` at or a little under its count. *Acceptance:* the
-`[subject]` line gone; raising one floor past its count turns `every scanner
-read its declared subject` red (then restore it).
-
-**W.4 Push, with an upstream.** `main` tracks nothing (`git rev-parse @{u}`
-fails), so this pass did not push. `git branch -u origin/main`, then push
-through the pre-push gate. *Acceptance:* `git rev-list --count
-origin/main..main` = 0.
+- **W.1** `no early-exit pipe under pipefail` (11 sites; five unused scripts deleted, no seed): `1ef235c`
+- **W.2** `--full` runs `xcodegen generate` before the swift gate, green in a fresh worktree: `4f948c4`
+- **W.3** Scanner floors (10 keys, calibrated red): `6129495`
+- **W.4** `main` tracks `origin/main`; pushed: `6129495`
 
 ## Phase 0b — the shipped pharmacology that has no support (core rule 8)
 
