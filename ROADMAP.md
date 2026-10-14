@@ -15,7 +15,7 @@ companion, a portable engine). Nothing merges between them in either direction.
 The consequence that matters: **this fork was cut BEFORE koffee_big's
 2026-09-08 evidence audit**, so it still ships the caffeine numbers that audit
 proved wrong. koffee_big's `FEATURE_PLAN.md` evidence archive ("SOTA evidence
-program") is the reference for every Phase 0 item below; port the corrected
+program") is the reference for every Phase 0b item below; port the corrected
 NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
@@ -24,11 +24,52 @@ Standing constraints: everything data-driven, nothing hardcoded (derive from
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
-**State (measured 2026-10-12):** `main` = `origin/main`, v0.1.0, tree clean,
-`tools/gate.sh --full` green (structural + swiftlint + xcodebuild test + no
-warnings).
+**State (measured 2026-10-14):** v0.1.0; `main` is ahead of `origin/main`
+(hooks `57568df` + this plan) and has no upstream configured. goh v0.27.0
+turned `tools/gate.sh --full` red (Phase 0).
 
-## Phase 0 — the shipped pharmacology that has no support (core rule 8)
+## Phase 0 — wire in goh 0.27.0
+
+Goal: `tools/gate.sh --full` green at HEAD and pushed. Measured 2026-10-14
+at `57568df` (goh `51d31a5`): structural is red at its first failing step;
+with that neutralised in a scratch worktree of HEAD, the swift gate is red
+there too, and green once the project is generated (47 s). Exit: W.1-W.4
+closed. Size **S**, one short session.
+
+**W.1 Red: `no early-exit pipe under pipefail`** — 11 sites in 8 of 18 shell
+sources: `scripts/dep_graph.sh:19,22`, `scripts/find_type.sh:16`,
+`scripts/grep.sh:11`, `scripts/lint.sh:10,14,19`,
+`scripts/project_overview.sh:27`, `scripts/run_tests.sh:18`,
+`scripts/size_report.sh:6`, `test.sh:55` (all `| head -N`). Rewrite each to
+`out="$(producer)"; head -n N <<< "$out"`, or delete a script nothing uses.
+*Acceptance:* the step green with no seed.
+
+**W.2 Red in the pushed export: `swift: xcodebuild test (-scheme
+KoffeeTests)`** — `xcodebuild: error: 'Koffee.xcodeproj' does not exist.`
+The project is xcodegen output and gitignored (`.gitignore:2`), and the
+reinstalled pre-push runs the gate in a clean worktree of the pushed
+commit, where it was never generated. Fix: `tools/gate.sh --full` runs
+`xcodegen generate` before `swift_gate.sh` (not `GOH_EXPORT_KEEP`, which
+would carry a stale generated project into the gate). *Acceptance:* the
+gate green in a fresh `git worktree add --detach <dir> HEAD`.
+
+**W.3 Set the scanner floors.** Printed 2026-10-14:
+`GOH_EMOJI_MIN_FILES=146 GOH_CONFLICT_MARKERS_MIN_FILES=147
+GOH_FILE_LENGTH_MIN_FILES=116 GOH_SECRETS_MIN_FILES=146
+GOH_SHELL_LINT_MIN_FILES=13 GOH_EARLY_EXIT_PIPE_MIN_FILES=18
+GOH_DEAD_AFTER_EXEC_MIN_FILES=18 GOH_BARE_HOOK_INDEX_MIN_FILES=18
+GOH_BARE_PYTHON_MIN_FILES=6 GOH_UNREAPED_SPAWN_MIN_FILES=3` (read in the
+scratch worktree, which carried one extra untracked seed file). Paste each
+into `.gatesrc` at or a little under its count. *Acceptance:* the
+`[subject]` line gone; raising one floor past its count turns `every scanner
+read its declared subject` red (then restore it).
+
+**W.4 Push, with an upstream.** `main` tracks nothing (`git rev-parse @{u}`
+fails), so this pass did not push. `git branch -u origin/main`, then push
+through the pre-push gate. *Acceptance:* `git rev-list --count
+origin/main..main` = 0.
+
+## Phase 0b — the shipped pharmacology that has no support (core rule 8)
 
 Goal: no number or advice Koffee shows contradicts the evidence. Correctness
 outranks keeping a number stable; state each user-visible change's magnitude in
@@ -98,7 +139,7 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   visible in the log the rest of the app writes. *DONE WHEN:* `rg 'print\('
   Koffee` is empty, gated.
 
-## Phase 2 — product (only after Phase 0)
+## Phase 2 — product (only after Phase 0b)
 
 The 2026-09-08 loop goal ("make this the best coffee intake app in history")
 is carried as these concrete items, in koffee_big's competitor-survey order:
@@ -135,4 +176,7 @@ forecast and quick-log. Size **M** each.
 - `RUSTIFICATION_ROADMAP.md` (Projects root) — lists `koffee_oss` as
   never-in-scope (stays native Swift). No item.
 - `ROADMAP-consolidated.md` (Projects root) — no koffee_oss entries.
-- koffee_big `FEATURE_PLAN.md` — the evidence archive Phase 0 cites.
+- koffee_big `FEATURE_PLAN.md` — the evidence archive Phase 0b cites.
+- gates_of_heck v0.27.0 Downstream (2026-10-14): hooks reinstalled
+  (`57568df`); early-exit pipes (goh counted 11) -> W.1; floors -> W.3. No
+  Python, so the stdin gate reads nothing here.
