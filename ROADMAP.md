@@ -20,7 +20,7 @@ NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
 `beverages.json`, GRDB, or computed PK values). House gates stay green: build,
-181 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
+187 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
@@ -54,7 +54,7 @@ xcode coverage reader broke. See G1.
 Goal: no number or advice Koffee shows contradicts the evidence. Correctness
 outranks keeping a number stable; state each user-visible change's magnitude in
 its commit. Exit: K1-K5 closed, each with a red-first test. **K1 (2542390),
-K2 (bed737d) and K3 (f5a71d7) are closed.** Size **M**, one session.
+K2 (bed737d), K3 (f5a71d7) and K4 (a6a9470) are closed.** Size **M**, one session.
 
 **K1. The daily ceiling exceeds 400 mg for "low sensitivity" — DONE.**
 `AppState.dailyCaffeineLimit` was `Sensitivity.multiplier * 400` and `.low` has multiplier 1.2,
@@ -189,12 +189,54 @@ User-visible: the cutoff notification and the Notifications preview move with
 the dose. A medium reader, 23:00 bedtime, 95 mg day → **18:23** instead of
 14:00. A 400 mg day draws a wall the old table never would have.
 
-**K4. Bedtime residual tiers 25 / 50 / 100 mg: only 100 mg is sourced.**
+**K4. Bedtime residual tiers 25 / 50 / 100 mg: only 100 mg is sourced — DONE.**
 `Sensitivity.safeCaffeineAtBedtime` and `CaffeineConstants.*BedtimeMg`.
 koffee_big's audit found no source for the tiers (efsa2015sleep backs 100 mg).
-*DONE WHEN:* the threshold is 100 mg with its citation, and anything stricter is
-a user preference the UI names as theirs; `CaffeineConstants` and `Sensitivity`
-no longer hold two copies of the same three numbers.
+
+**The tiers did not change, and that is the finding.** The obvious reading of
+this item — "the threshold is 100 mg with its citation" — is to collapse all
+three to 100. That is the wrong direction: it makes the app **laxer** for medium
+and high readers, which is exactly what the standing rule forbids, the same rule
+K1 broke when `multiplier * 400` showed a low-sensitivity user 480 mg/day as
+safe. Warning earlier than the evidence requires is a preference; warning later
+would be a claim. koffee_big kept 25/50/100 for the same reason, on 2026-09-08.
+
+So the item is closed by making the distinction **visible**, not by moving the
+numbers:
+
+  * `safeCaffeineAtBedtime` carries its own sourcing docstring, including an
+    explicit instruction not to collapse it, so the next reader does not have to
+    re-derive the direction.
+  * `bedtimeThresholdName` names each threshold for the reader — "the 100mg
+    research limit" for the sourced one, "your stricter 50mg choice" for the
+    convention — and the dashboard's over-limit sentence uses it. A convention
+    that renders exactly like a finding is a finding, whatever the docstring
+    says.
+
+**The actual defect was the duplication, and it was dead.**
+`CaffeineConstants` carried `high/medium/lowSensitivityBedtimeMg` at 25 / 50 /
+100 — a verbatim restatement of `Sensitivity`'s switch with **zero call sites**.
+The item named this ("two copies of the same three numbers") and it was right,
+but the copy was not stale, it was inert: a dead copy of a safety number is one
+edit away from being the live one, and nothing would announce the change. All
+three are deleted, and `BedtimeThresholdProvenanceTests` refuses the declaration
+returning.
+
+Red first, and calibrated. Reintroducing the duplicate declaration fails the
+scan; setting medium to 150 mg — laxer than the sourced figure — fails the
+one-directional property *by name*, which is the assertion that stops a future
+session from "tidying" K4 in the forbidden direction.
+
+Two things the tests themselves cost, both recorded because each is a shape:
+the scan first grepped for the bare symbol and went red on the *comment
+explaining the removal* — matching the declaration keeps the repo able to record
+why they are gone. And the source path was one `deleteLastPathComponent()`
+short, which `try!` caught as a crash rather than letting the scan read nothing
+and pass; both tests are now `throws`, which fails just as loudly and passes
+the repo's `force_try` lint.
+
+User-visible: the dashboard says "over your stricter 50mg choice" instead of
+"over the 50mg limit". No threshold changes.
 
 **K5. The interaction-extension model and its dead constants.**
 `calculateCaffeineLevel(interactions:)` lengthens caffeine's half-life by
