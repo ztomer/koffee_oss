@@ -131,8 +131,21 @@ struct NotificationsView: View {
             pending: pending,
             sleepTime: profile?.sleepTime,
             sensitivity: sensitivity,
-            metabolism: metabolism
+            metabolism: metabolism,
+            // The biggest dose of the day, not a constant: a cutoff drawn for a
+            // 95 mg standard dose is simply the wrong wall for the day the user
+            // actually had. With no doses yet the prospective standard is the only
+            // honest number available.
+            referenceDoseMg: todayReferenceDoseMg
         )
+    }
+
+    /// The dose the cutoff is derived from: today's largest logged dose, else the
+    /// prospective standard. Never an average — averaging pulls the wall inward.
+    private var todayReferenceDoseMg: Double {
+        let today = appState.dosesForDate(Date())
+        let todayMax = today.map(\.caffeineMg).max() ?? 0
+        return todayMax > 0 ? todayMax : CaffeineConstants.defaultDoseMg
     }
 
     private var reminderList: some View {
@@ -195,11 +208,17 @@ struct NotificationsView: View {
 
 /// Live SCHEDULED preview. Pure for testing: next pending item wins, else the
 /// computed caffeine cutoff, else a warm empty line. Never hardcoded times.
+///
+/// K3. `referenceDoseMg` is the dose the cutoff is drawn for — the day's biggest
+/// dose at the call site, so the wall is tight enough for the biggest thing
+/// actually consumed and smaller doses get more room than they strictly need.
+/// Conservative in the permitted direction, never in the forbidden one.
 func nextNudgeLine(
     pending: [DailyPlanItemModel],
     sleepTime: Date?,
     sensitivity: Sensitivity,
-    metabolism: MetabolismRate
+    metabolism: MetabolismRate,
+    referenceDoseMg: Double
 ) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "HH:mm"
@@ -207,7 +226,10 @@ func nextNudgeLine(
         return "Next nudge: \(formatter.string(from: next.scheduledTime)) — \(next.compoundName) \(Int(next.doseMg))mg"
     }
     if let sleep = sleepTime {
-        let hours = sensitivity.hoursBeforeBedForLastDose * metabolism.halfLifeMultiplier
+        let hours = sensitivity.hoursBeforeBedForLastDose(
+            doseMg: referenceDoseMg,
+            halfLifeHours: 5.0 * metabolism.halfLifeMultiplier
+        )
         if let cutoff = Calendar.current.date(byAdding: .minute, value: -Int(hours * 60), to: sleep) {
             return "Next nudge: \(formatter.string(from: cutoff)) cutoff"
         }

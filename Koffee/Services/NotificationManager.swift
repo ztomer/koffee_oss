@@ -31,9 +31,23 @@ class NotificationManager {
         }
     }
 
-    func scheduleCaffeineCutoff(sleepTime: Date, sensitivity: Sensitivity, metabolism: MetabolismRate) async {
-        let hoursBeforeBed = sensitivity.hoursBeforeBedForLastDose * metabolism.halfLifeMultiplier
-        guard let cutoffTime = Calendar.current.date(byAdding: .hour, value: -Int(hoursBeforeBed), to: sleepTime) else { return }
+    /// Schedules the caffeine cutoff notification.
+    ///
+    /// K3. `referenceDoseMg` sizes the wall — the day's largest logged dose, so a
+    /// 400 mg cold brew draws a much earlier cutoff than a 50 mg tea. The old
+    /// signature had no dose at all, which is why the table underneath it was
+    /// necessarily dose-blind.
+    func scheduleCaffeineCutoff(
+        sleepTime: Date,
+        sensitivity: Sensitivity,
+        metabolism: MetabolismRate,
+        referenceDoseMg: Double
+    ) async {
+        let hoursBeforeBed = sensitivity.hoursBeforeBedForLastDose(
+            doseMg: referenceDoseMg,
+            halfLifeHours: 5.0 * metabolism.halfLifeMultiplier
+        )
+        guard let cutoffTime = Calendar.current.date(byAdding: .minute, value: -Int(hoursBeforeBed * 60), to: sleepTime) else { return }
 
         let content = UNMutableNotificationContent()
         content.title = "Caffeine Cutoff"

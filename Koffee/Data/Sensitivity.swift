@@ -59,12 +59,27 @@ enum Sensitivity: String, CaseIterable, Identifiable {
         }
     }
 
-    var hoursBeforeBedForLastDose: Double {
-        switch self {
-        case .low: return 6.0
-        case .medium: return 9.0
-        case .high: return 12.0
-        }
+    /// The gap before bed that this reader's own model requires of a given dose.
+    ///
+    /// K3. Replaced a fixed 6 / 9 / 12 hour table with a derivation, because the
+    /// table was dose-blind and could therefore certify a dose as safe that the
+    /// reader's own threshold called unsafe.
+    ///
+    /// `halfLifeHours` is the **effective** half-life — the reader's base half-life
+    /// already multiplied by their metabolism rate.
+    ///
+    /// Returns the LONGER of the two, never the shorter, and never an average:
+    /// where the Gardiner floor binds the empirics do the work, and where the
+    /// derivation binds the reader's own threshold does.
+    func hoursBeforeBedForLastDose(doseMg: Double, halfLifeHours: Double) -> Double {
+        return max(
+            CaffeinePK.hoursToDecay(
+                doseMg: doseMg,
+                toMilligrams: safeCaffeineAtBedtime,
+                halfLifeHours: halfLifeHours
+            ),
+            CaffeinePK.floorHours(doseMg: doseMg)
+        )
     }
 
     var displayName: String {
