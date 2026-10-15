@@ -239,7 +239,17 @@ var pendingCaffeine: Double {
     }
 
     private var oracleSubtitle: String {
-        oracleLine(bedtimeMg: caffeineAtBedtime, limit: safeLimit)
+        oracleLine(
+            bedtimeMg: caffeineAtBedtime,
+            limit: safeLimit,
+            thresholdName: currentSensitivity.bedtimeThresholdName
+        )
+    }
+
+    /// The reader's own sensitivity setting, so the bedtime sentence can name
+    /// whether its threshold is the sourced figure or their stricter choice.
+    private var currentSensitivity: Sensitivity {
+        Sensitivity(swiftDataValue: appState.profile?.sensitivity ?? "") ?? .medium
     }
 
     // MARK: - Hero Section (Chart)
@@ -285,14 +295,18 @@ var pendingCaffeine: Double {
 
 // MARK: - Oracle copy (pure, testable)
 /// Per-state oracle line. Numbers stay honest: every state names the bedtime mg.
-func oracleLine(bedtimeMg: Double, limit: Double) -> String {
+func oracleLine(bedtimeMg: Double, limit: Double, thresholdName: String) -> String {
     let mg = Int(bedtimeMg)
     if bedtimeMg <= limit * 0.5 {
         return "Thanks for keeping it early — \(mg)mg at bedtime."
     } else if bedtimeMg <= limit {
         return "Still wired at \(mg)mg by bedtime — easy on the next cup."
     } else {
-        return "Put the pot down — \(mg)mg at bedtime over the \(Int(limit))mg limit."
+        // K4. "over the 50mg limit" read as evidence the app had measured. Only
+        // the 100 mg figure is sourced; 50 and 25 are the reader's own stricter
+        // choice, and the sentence now says so rather than letting a convention
+        // pass as a finding.
+        return "Put the pot down — \(mg)mg at bedtime, over \(thresholdName)."
     }
 }
 

@@ -74,9 +74,19 @@ enum RepositoryConstants {
 // MARK: - Caffeine Constants
 enum CaffeineConstants {
     static let defaultDoseMg: Double = 95
-    static let highSensitivityBedtimeMg: Double = 25
-    static let mediumSensitivityBedtimeMg: Double = 50
-    static let lowSensitivityBedtimeMg: Double = 100
+
+    /// The bedtime threshold used when there is no profile to read one from.
+    ///
+    /// K4. This is a FALLBACK for a reader who has not said anything about
+    /// themselves — it is not a second copy of `Sensitivity.safeCaffeineAtBedtime`.
+    /// Until 2026-10-15 this enum also carried `high/medium/lowSensitivityBedtimeMg`
+    /// (25 / 50 / 100), which restated that switch verbatim and were used by
+    /// nothing at all. They are gone, and `BedtimeThresholdProvenanceTests` refuses
+    /// them returning: a dead copy of a safety number is one edit away from being
+    /// the live one, and nothing would announce it.
+    ///
+    /// 50 mg here rather than 100 mg is deliberate — conservative in the direction
+    /// the standing rule permits, matching koffee_big's fallback.
     static let defaultBedtimeMg: Double = 50
 
     /// The adult daily ceiling, mg. EFSA 2015: single doses up to 200 mg and a
