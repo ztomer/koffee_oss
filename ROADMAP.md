@@ -20,13 +20,14 @@ NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
 `beverages.json`, GRDB, or computed PK values). House gates stay green: build,
-168 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
+181 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
 **State (measured 2026-10-15):** v0.1.0; `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
-gate has stayed green since, through K1 (`2542390`) and K2 (`bed737d`).
+gate has stayed green since, through K1 (`2542390`), K2 (`bed737d`)
+and K3 (`f5a71d7`).
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -52,8 +53,8 @@ xcode coverage reader broke. See G1.
 
 Goal: no number or advice Koffee shows contradicts the evidence. Correctness
 outranks keeping a number stable; state each user-visible change's magnitude in
-its commit. Exit: K1-K5 closed, each with a red-first test. **K1 and K2 are
-closed.** Size **M**, one session.
+its commit. Exit: K1-K5 closed, each with a red-first test. **K1 (2542390),
+K2 (bed737d) and K3 (f5a71d7) are closed.** Size **M**, one session.
 
 **K1. The daily ceiling exceeds 400 mg for "low sensitivity" — DONE.**
 `AppState.dailyCaffeineLimit` was `Sensitivity.multiplier * 400` and `.low` has multiplier 1.2,
@@ -129,14 +130,64 @@ Calibrated by planting the claim at a surface the scan had never seen
 
 User-visible: the dashboard's first-coffee row moves from wake+90 to wake.
 
-**K3. Fixed cutoff hours 6 / 9 / 12 by sensitivity are unsourced.**
-`Sensitivity.hoursBeforeBedForLastDose` (x metabolism) drives the cutoff
-notification and the Notifications preview, and ignores dose size — koffee_big
-deleted the same table after its own PK showed a 200 mg dose over threshold
-while "respecting" the cutoff. *DONE WHEN:* the cutoff is derived per dose by
-decaying it through `calculateCaffeineLevel` to the bedtime threshold, floored
-by the Gardiner anchors (0 / 47 / 100 / 400 mg -> 0 / 0 / 4 / 12 h; Gardiner
-2023 meta-analysis + 2024 crossover), with the citation in data.
+**K3. Fixed cutoff hours 6 / 9 / 12 by sensitivity are unsourced — DONE.**
+`Sensitivity.hoursBeforeBedForLastDose` was a table (low 6 h, medium 9 h, high
+12 h, × metabolism) driving the cutoff notification and the Notifications
+preview. Replaced by `CaffeinePK`.
+
+**The sourcing was the lesser problem. The table was dose-blind.** It drew the
+same wall for a 50 mg tea and a 400 mg cold brew. For a medium reader with a
+23:00 bedtime it drew 14:00, and a 200 mg dose taken at 14:00 is still
+
+    200 · 0.5^(9/5) = 57.4 mg
+
+at bedtime — above the 50 mg that reader's own threshold says. The app could
+report the cutoff respected while its own model put the reader over the line it
+drew. koffee_big measured this on 2026-09-08 and deleted the same table; this
+fork predates that audit, so it still shipped it.
+
+The replacement is **the longer of two numbers, each with a different warrant**:
+
+  * **the derivation** — hours for THIS dose to decay to THIS reader's threshold
+    at THEIR half-life (the exact inverse of `calculateCaffeineLevel`), so the
+    `calculateCaffeineLevel`), so the cutoff and the bedtime projection cannot
+    disagree by construction.
+  * **the Gardiner floor** — the only head-to-head dose-by-timing trial data
+    (0 / 47 / 100 / 400 mg → 0 / 0 / 4 / 12 h; `gardiner2024sleep`,
+    `gardiner2023sleep`, `efsa2015sleep`). Segments are **linear interpolation**
+    and are labelled as presentation rather than finding. Past 400 mg the last
+    segment **extends**, it does not clamp: clamping claims knowledge stops
+    mattering at the last node.
+
+The longer, never the shorter, never an average. Where the floor binds the
+empirics do the work; where the derivation binds the reader's own threshold
+does.
+
+Metabolism moved **inside** the half-life instead of being multiplied onto the
+resulting hours — it is a clearance rate, so lengthening the half-life is the
+correct direction, and it keeps the cutoff consistent with the decay model.
+
+Both consumers now take a dose. `nextNudgeLine` takes `referenceDoseMg`; the
+view passes **today's largest logged dose**, falling back to the 95 mg
+prospective standard. Never an average — averaging pulls the wall inward, and
+conservatism has only one safe direction.
+
+**Red first, and calibrated.** The load-bearing assertion is an invariant, not
+a number: after waiting the gap the app draws, the dose is not above the
+reader's own threshold at bedtime — across every sensitivity and every dose
+from 50 to 400 mg. Reintroducing the retired table fails it five times over,
+which is the calibration that proves the check bites.
+
+Two of my own test expectations were wrong before the code was, and both were
+corrected in the tests rather than the code: 800 mg on the floor is **22.67 h**,
+not 24 (the slope is linear in milligrams, not in log-dose), and the 95 mg
+cutoff is **18:23**, not 18:22 (277.8 min truncates to 277, which moves the
+wall half a minute earlier — the conservative direction). Stated plainly because
+a test agreeing with a broken expectation is how a wrong number gets pinned.
+
+User-visible: the cutoff notification and the Notifications preview move with
+the dose. A medium reader, 23:00 bedtime, 95 mg day → **18:23** instead of
+14:00. A 400 mg day draws a wall the old table never would have.
 
 **K4. Bedtime residual tiers 25 / 50 / 100 mg: only 100 mg is sourced.**
 `Sensitivity.safeCaffeineAtBedtime` and `CaffeineConstants.*BedtimeMg`.
