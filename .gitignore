@@ -30,3 +30,7 @@ __pycache__/
 # Agent session state (opencode loop plugin). Untracked twice by hand
 # (ede6e2c, be3d0db) before it was ignored; ignoring it is the fix.
 .opencode/
+
+# Xcode build logs from the test target: machine-local, and they came in with the
+# history flatten (G2). Regenerated on every test run.
+DerivedDataTests/

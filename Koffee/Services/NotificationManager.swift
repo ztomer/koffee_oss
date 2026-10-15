@@ -11,7 +11,7 @@ class NotificationManager {
         do {
             return try await notificationCenter.requestAuthorization(options: [.alert, .badge, .sound])
         } catch {
-            print("Notification permission denied: \(error)")
+            debugLog("Notification permission denied: \(error)")
             return false
         }
     }
@@ -37,7 +37,7 @@ class NotificationManager {
         do {
             try await notificationCenter.add(request)
         } catch {
-            print("Failed to schedule cutoff: \(error)")
+            debugLog("Failed to schedule cutoff: \(error)")
         }
     }
 
@@ -59,7 +59,7 @@ class NotificationManager {
         do {
             try await notificationCenter.add(request)
         } catch {
-            print("Failed to schedule wakeup: \(error)")
+            debugLog("Failed to schedule wakeup: \(error)")
         }
     }
 
@@ -81,7 +81,7 @@ class NotificationManager {
         do {
             try await notificationCenter.add(request)
         } catch {
-            print("Failed to schedule caffeine reminder: \(error)")
+            debugLog("Failed to schedule caffeine reminder: \(error)")
         }
     }
 

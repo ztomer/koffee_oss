@@ -1,0 +1,16 @@
+{
+  "//": "Measured 2026-10-15 on the committed tree (G1). Per-target, because the whole-tree",
+  "//2": "number is meaningless here: AppAuth, GRDB, KeychainAccess and LiquidContainer are",
+  "//3": "third-party and report 0%, which would drag a total to ~14% and make the gate a",
+  "//4": "statement about dependencies rather than about Koffee. A floors key is a PATH",
+  "//5": "PREFIX, so `Koffee.app` aims at the app.",
+  "//6": "",
+  "//7": "`Koffee.xctest` is deliberately NOT listed. Test bundles are out of the denominator",
+  "//8": "(lib/swift_coverage_scope.py), so a floor naming one matches no measured source --",
+  "//9": "which the gate reports as a hard error, correctly. Listing it at 0 would have been a",
+  "//10": "floor that cannot fail, on the one target that is ~97% covered for free.",
+  "targets": {
+    "Koffee.app": 40
+  },
+  "tolerance": 0
+}

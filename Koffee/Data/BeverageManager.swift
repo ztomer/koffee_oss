@@ -51,7 +51,7 @@ class BeverageManager: ObservableObject {
 
             self.beverages = beverageData.beverages
         } catch {
-            print("Failed to load beverages: \(error)")
+            debugLog("Failed to load beverages: \(error)")
             loadDefaultBeverages()
         }
     }

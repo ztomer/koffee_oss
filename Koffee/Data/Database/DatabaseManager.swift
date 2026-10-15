@@ -24,7 +24,7 @@ final class DatabaseManager {
 
         try migrator().migrate(dbQueue!)
         isReady = true
-        print("[DatabaseManager] Opened at \(DatabaseManager.dbURL.path)")
+        debugLog("[DatabaseManager] Opened at \(DatabaseManager.dbURL.path)")
     }
 
     func queue() -> DatabaseQueue {

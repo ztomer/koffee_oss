@@ -24,9 +24,20 @@ Standing constraints: everything data-driven, nothing hardcoded (derive from
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
-**State (measured 2026-10-14):** v0.1.0; `main` is ahead of `origin/main`
-(hooks `57568df` + this plan) and has no upstream configured. goh v0.27.0
-turned `tools/gate.sh --full` red (Phase 0).
+**State (measured 2026-10-15):** v0.1.0; `main` is in sync with `origin/main`.
+`tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
+gate has stayed green since.
+
+This header used to say the opposite of the Phase 0 section directly beneath it:
+it claimed `main` was ahead of `origin/main` (it is not — that was written before
+the push landed) and that goh v0.27.0 "turned `tools/gate.sh --full` red",
+while Phase 0 recorded the same work as *closed and green at `6129495`*. Both
+sentences were stale in opposite directions, which is the worst pairing: the
+header is what a reader trusts first.
+
+Phase 1's G1 also inherited a false premise — "coverage floor not set yet"
+read as a decision deferred, when setting one had been **impossible** since goh's
+xcode coverage reader broke. See G1.
 
 ## Phase 0 — wire in goh 0.27.0: closed 2026-10-14
 
@@ -94,18 +105,61 @@ every constant with zero readers are deleted; a test or `rg` gate refuses
 
 Goal: the gate can fail on everything the house rules require. Size **S**.
 
-- **G1. No coverage floor.** `tools/gate.sh` says "Coverage floor not set yet".
-  *DONE WHEN:* `GOH_SWIFT_COV_MIN` in `.gatesrc` at the measured value (ratchet
-  up to 95), proven red by lowering coverage once.
-- **G2. Xcode build logs are tracked.** Six files under `DerivedDataTests/`
-  (`.xcactivitylog`, `LogStoreManifest.plist`, `workspace-state.json`) came in
-  with the history flatten. *DONE WHEN:* `git rm -r --cached DerivedDataTests`,
-  the path ignored, and the house "no tracked build output" check (if goh has
-  one) sees it; otherwise report the gap to gates_of_heck.
-- **G3. Seven bare `print(` calls in `Koffee/`** (e.g. the cutoff scheduler's
-  failure path). Route through the app's `debugLog` / a logger so a failure is
-  visible in the log the rest of the app writes. *DONE WHEN:* `rg 'print\('
-  Koffee` is empty, gated.
+- **G1. No coverage floor — DONE.** `GOH_SWIFT_COV_MIN=40` in `.gatesrc`, with per-target
+  floors in `tools/coverage_floors.jsonc`. Measured on the committed tree: **Koffee.app is
+  40.4%** (3186/7889 lines).
+
+  Per-target because the whole-tree number is meaningless here: AppAuth, GRDB, KeychainAccess
+  and LiquidContainer are third-party and report 0%, which would drag a total to ~14% and make
+  the gate a statement about dependencies rather than about Koffee.
+
+  **It was never "not set yet" — it was settable and could not be set.** Turning the floor on
+  went red on a healthy tree, because `check_swift_coverage.py --xcode` was unrunnable: it read
+  coverage with `xcresulttool get --format json`, which Xcode now refuses without `--legacy`.
+  That is fixed in goh v0.28.1 (`gates_of_heck` `b267e82`), which reads `xccov` instead and keeps
+  the object walk as a `--legacy` fallback. This repo's floor is the first in the estate to
+  depend on it.
+
+  Two numbers were rejected on the way, both because the gate would have been measuring the
+  wrong thing:
+
+  * **60.2%** — counting the `Koffee.xctest` bundle. A test file is ~100% covered by
+    definition; it is the thing doing the running. A floor set on that number can be met by
+    writing tests that assert nothing. `lib/swift_coverage_scope.py` has said so since
+    2026-09-07, and the xcode path had never applied it.
+  * **~14%** — including the third-party targets.
+
+  Proven red through this repo's own gate, not by editing the number: with the floor at 60 the
+  gate reports `40.4% is under the 60% floor` and names `Koffee.app`. Ratchet up to 95 as
+  coverage lands.
+
+- **G2. Xcode build logs are tracked — DONE, and the gap it names is real.**
+  `git rm -r --cached DerivedDataTests` — the six tracked files are now zero — and the path is
+  in `.gitignore` with a note saying why. The files themselves are untouched on disk; only the
+  tracking went.
+
+  The item's fallback applies: **goh has no "no tracked build output" check**, so the gap is
+  reported there rather than papered over with a local grep. Only `version-provenance` comes
+  close and it is about something else entirely. Recorded in `gates_of_heck`'s `docs/BACKLOG.md`.
+
+- **G3. Seven bare `print(` calls in `Koffee/` — DONE.** Routed through `debugLog()`, which the
+  app already used from `Koffee/Data/` and which writes a labelled, timestamped line to
+  `/tmp/koffee.log`. The defect was never the call: it was that a cutoff reminder which failed
+  to schedule said so on stdout, into whatever was attached, and left **nothing in the log a
+  user could send**.
+
+  `debugLog`'s own console echo became `FileHandle.standardError.write` rather than being
+  dropped — the live tail is worth keeping, and losing it to satisfy a grep would have been the
+  gate dictating behaviour. `rg 'print(' Koffee` is now empty, which is the item's own proof.
+
+  Gated by `tools/no_bare_print.sh`, wired into `tools/gate.sh --full` **before** the swift gate
+  so a planted print is caught in seconds instead of after a full `xcodebuild test`. Proved by
+  planting one.
+
+  It is a plain grep, comments included, on purpose. Stripping comments first would be friendlier
+  and would let a comment quote the call it is discussing for free; here such a comment goes red
+  instead — annoying, and the safe direction to fail in, because noticing a print that came back
+  is the entire job.
 
 ## Phase 2 — product (only after Phase 0b)
 

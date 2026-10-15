@@ -4,6 +4,7 @@
 #   --staged : pre-commit scope (fast) — layer 1 only
 #   --full   : pre-push scope — every layer
 set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOH="${GOH_DIR:-${GOH:-$HOME/Projects/gates_of_heck}}"
 
 "$GOH/gates/structural.sh" "$@"
@@ -14,7 +15,8 @@ case "${1:-}" in
     #
     # swift: Koffee app (xcodebuild) + LiquidContainer SPM package.
     #   Lint debt cleared 2026-08 - swiftlint --strict is green.
-    #   Coverage floor not set yet (GOH_SWIFT_COV_MIN in .gatesrc).
+    #   Coverage floor set 2026-10-15 (G1): GOH_SWIFT_COV_MIN=40 with per-target
+    #   floors in tools/coverage_floors.jsonc -- measured, and aimed at the app.
     # Koffee.xcodeproj is xcodegen output and gitignored, so the clean export
     # of the pushed commit that the pre-push gate tests has none. Generate it
     # from project.yml on every run, never carry one in (GOH_EXPORT_KEEP would
@@ -24,6 +26,9 @@ case "${1:-}" in
       exit 2
     }
     xcodegen generate --quiet
+    # Before the swift gate, so a planted print is caught in seconds rather
+    # than after a full xcodebuild test run.
+    bash "$here/no_bare_print.sh"
     "$GOH/gates/swift_gate.sh" .
     # No Python layers: koffee_etl/ (USDA nutrition + Wger exercise pipeline)
     # was removed 2026-09 - non-coffee feature strip.
