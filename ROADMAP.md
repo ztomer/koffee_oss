@@ -20,14 +20,14 @@ NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
 `beverages.json`, GRDB, or computed PK values). House gates stay green: build,
-187 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
+191 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
 **State (measured 2026-10-15):** v0.1.0; `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
-gate has stayed green since, through K1 (`2542390`), K2 (`bed737d`)
-and K3 (`f5a71d7`).
+gate has stayed green since, through all five Phase 0b items — K1 (`2542390`),
+K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -53,8 +53,9 @@ xcode coverage reader broke. See G1.
 
 Goal: no number or advice Koffee shows contradicts the evidence. Correctness
 outranks keeping a number stable; state each user-visible change's magnitude in
-its commit. Exit: K1-K5 closed, each with a red-first test. **K1 (2542390),
-K2 (bed737d), K3 (f5a71d7) and K4 (a6a9470) are closed.** Size **M**, one session.
+its commit. **Exit met: K1-K5 are ALL closed — K1 (2542390), K2 (bed737d),
+K3 (f5a71d7), K4 (a6a9470), K5 (2aeb51d) — each with a red-first test.**
+Size **M**, one session.
 
 **K1. The daily ceiling exceeds 400 mg for "low sensitivity" — DONE.**
 `AppState.dailyCaffeineLimit` was `Sensitivity.multiplier * 400` and `.low` has multiplier 1.2,
@@ -238,17 +239,44 @@ the repo's `force_try` lint.
 User-visible: the dashboard says "over your stricter 50mg choice" instead of
 "over the 50mg limit". No threshold changes.
 
-**K5. The interaction-extension model and its dead constants.**
-`calculateCaffeineLevel(interactions:)` lengthens caffeine's half-life by
+**K5. The interaction-extension model and its dead constants — DONE.**
+`calculateCaffeineLevel(interactions:)` lengthened caffeine's half-life by
 `extensionHours` — the theanine-extends-caffeine model the audit refuted
-(theanine has no CYP1A2 effect; Grzegorzewski 2022). No caller passes it after
-the coffee-only strip, so it is a seam that encodes a false claim. Dead beside
-it: `MathConstants.lTheanineRatio` 1.5, `recoveryPenalty`,
-`sleepScoreThreshold`, `lowSleepScoreThreshold`, `deepSleepMinimumMinutes`, and
-`PKEngineeringConstants` (Michaelis-Menten Km / Vmax — saturable elimination
-needs several times a lethal concentration). *DONE WHEN:* the parameter and
-every constant with zero readers are deleted; a test or `rg` gate refuses
-`extensionHours` returning.
+(theanine has no CYP1A2 effect; Grzegorzewski 2022). No caller passed it after
+the coffee-only strip. It is **deleted, parameter and all.**
+
+"Unused" understates it. An unused parameter is a **seam**: the next compound
+added to the stack would find a hand-hold labelled "extension hours" and nothing
+recording that the model behind it was wrong. An unused API is a decision the
+codebase is still willing to make.
+
+Deleted beside it — both enum **bodies**, not their members, because an empty
+enum is the same mistake in a second form:
+
+  * `MathConstants` — `halfLifeDecayFactor`, `recoveryPenalty`, `lTheanineRatio`
+    (1.5, half of the very model refuted above), `deepSleepMinimumMinutes`,
+    `sleepScoreThreshold`, `lowSleepScoreThreshold`.
+  * `PKEngineeringConstants` — `michaelisConstantKm` 150 mg, `maxEliminationRateVmax`
+    50 mg/h. Worse than unused: it asserts **saturable Michaelis-Menten
+    elimination**, whose first-order regime needs concentrations several times a
+    lethal dose. Nothing called it, but its existence was a claim that caffeine
+    elimination saturates in the therapeutic range, which it does not.
+
+**Red first, and calibrated.** `InteractionExtensionRefutedTests` went red on
+all eight constant names and both parameter tokens, by name, before any
+deletion. Planting the parameter back fails it; planting one constant back
+fails it too.
+
+**The scan is deliberately strict in one direction and loose in the other, and
+the difference is the lesson.** The refuted model's identifier must be absent
+from `Models.swift` **entirely, including in prose** — my own first draft of the
+explanatory comment spelled the old signature out verbatim, compilable, and the
+test correctly refused it. A comment that transcribes a rejected API is a
+template for reinstating it. K4's dead-duplicate scan, by contrast, matches the
+declaration pattern and permits prose, because there documenting the removal is
+the whole point. **A dead constant is history; a refuted claim is a hazard.**
+
+User-visible: nothing. There were no callers.
 
 ## Phase 1 — gate holes
 
