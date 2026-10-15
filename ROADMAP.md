@@ -20,13 +20,13 @@ NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
 `beverages.json`, GRDB, or computed PK values). House gates stay green: build,
-162 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
+168 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
 **State (measured 2026-10-15):** v0.1.0; `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
-gate has stayed green since.
+gate has stayed green since, through K1 (`2542390`) and K2 (`bed737d`).
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -52,8 +52,8 @@ xcode coverage reader broke. See G1.
 
 Goal: no number or advice Koffee shows contradicts the evidence. Correctness
 outranks keeping a number stable; state each user-visible change's magnitude in
-its commit. Exit: K1-K5 closed, each with a red-first test. Size **M**, one
-session.
+its commit. Exit: K1-K5 closed, each with a red-first test. **K1 and K2 are
+closed.** Size **M**, one session.
 
 **K1. The daily ceiling exceeds 400 mg for "low sensitivity" — DONE.**
 `AppState.dailyCaffeineLimit` was `Sensitivity.multiplier * 400` and `.low` has multiplier 1.2,
@@ -91,15 +91,43 @@ User-visible: the dashboard's safe-limit line drops from 480 mg to 400 mg for lo
 users. Correctness outranks keeping a number stable.
 
 
-**K2. The "first coffee 90 min after waking" advice has no trial behind it.**
-Three places: `TimeConstants.firstDoseDelaySeconds` = 5400 places the daily-plan
-item; `NotificationManager` says "First coffee in 90 minutes for optimal
-cortisol alignment"; the caffeine description says "Best taken 90 min after
-waking to avoid afternoon crash". No RCT establishes a post-wake delay and the
-cortisol / adenosine rationale is backwards (Antonio et al. 2024, Klaas et al.
-2025; koffee_big grades it tier `none`). *DONE WHEN:* no surface states a delay
-as guidance or cites cortisol; the plan item sits at wake or the user's own
-declared first-cup time; a test scans the strings.
+**K2. The "first coffee 90 min after waking" advice has no trial behind it — DONE.**
+Four surfaces, not the three the item first counted:
+
+  * `NotificationManager`'s morning body — an inline literal, so unreachable from any test.
+  * `TimeConstants.firstDoseDelaySeconds` = 5400, which **actually placed the generated
+    plan item at wake + 90 min**. This is the one that mattered: the advice was not
+    merely unsound, it was *scheduled*. A user who described their wake time was told at
+    breakfast time to wait 90 minutes.
+  * `NootropicCompound.explanation`'s "Best taken 90 min after waking to avoid
+    afternoon crash".
+  * `NootropicCompound.recommendedTimingMinutes` = 90 — **no consumer anywhere in the
+    app**, and asserted at 90 by `testCaffeineInAllCompounds`.
+
+No RCT establishes a post-wake delay, and the cortisol rationale is not merely
+unsupported but **backwards**: the morning cortisol peak is an adrenal awakening
+response that follows waking rather than preceding the first dose, so delaying a dose
+dodges nothing. koffee_big grades the claim tier `none` — remove, do not soften.
+
+Fixes in the order that makes each testable: the notification strings moved into a
+named `NotificationCopy` enum (copy that cannot be reached from a test cannot be
+corrected); `firstDoseDelaySeconds` was **deleted rather than zeroed** — zeroing keeps
+the seam that encodes the claim; `recommendedTimingMinutes` was deleted along with the
+assertion that pinned it. `NoPostWakeDelayClaimTests` scans the strings the app renders
+rather than a list of call sites, over `NootropicCompound.allCases` so a new compound
+cannot skip the scan.
+
+**Red first, and for the right reason.** The behavioural test initially failed with **0
+plan items**, not the 90-minute offset: `AppState`'s three `@Published` properties each
+lag their repository write by one main-queue hop, so reading `dailyPlanItems`
+immediately after `refreshDailyPlan()` returns asserts on nothing. A test red for the
+wrong reason is worthless. Waiting on `$dailyPlanItems` turned it into *"the caffeine
+plan item sits 90 min after wake"* — the defect stated as a number.
+
+Calibrated by planting the claim at a surface the scan had never seen
+(`NotificationCopy.morningBody`): red, and it names the surface.
+
+User-visible: the dashboard's first-coffee row moves from wake+90 to wake.
 
 **K3. Fixed cutoff hours 6 / 9 / 12 by sensitivity are unsourced.**
 `Sensitivity.hoursBeforeBedForLastDose` (x metabolism) drives the cutoff
