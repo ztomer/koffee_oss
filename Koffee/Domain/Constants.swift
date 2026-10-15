@@ -19,21 +19,18 @@ enum TimeConstants {
     static let defaultSleepTime: Date? = Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())
 }
 
-// MARK: - Math Constants
-enum MathConstants {
-    static let halfLifeDecayFactor: Double = 0.5
-    static let recoveryPenalty: Double = 0.7
-    static let lTheanineRatio: Double = 1.5
-    static let deepSleepMinimumMinutes: Double = 60
-    static let sleepScoreThreshold: Double = 70
-    static let lowSleepScoreThreshold: Double = 65
-}
-
-// MARK: - PK Engineering Constants
-enum PKEngineeringConstants {
-    static let michaelisConstantKm: Double = 150.0
-    static let maxEliminationRateVmax: Double = 50.0
-}
+// K5. `MathConstants` (halfLifeDecayFactor, recoveryPenalty, lTheanineRatio,
+// deepSleepMinimumMinutes, sleepScoreThreshold, lowSleepScoreThreshold) and
+// `PKEngineeringConstants` (michaelisConstantKm, maxEliminationRateVmax) both
+// stood here with zero readers between them. They are deleted rather than
+// emptied: an empty enum is a second version of the same mistake, and
+// `InteractionExtensionRefutedTests` refuses the names -- and the enum
+// declarations -- coming back.
+//
+// `lTheanineRatio` deserves its note, because it is the reason this matters. It
+// encoded theanine at 1.5x caffeine, half of the theanine-extends-caffeine model
+// the audit refuted (Grzegorzewski 2022: theanine has no CYP1A2 effect). A
+// constant nobody reads is still a claim the codebase is willing to make.
 
 // MARK: - Chart Constants
 enum ChartConstants {

@@ -39,21 +39,34 @@ func calculateCaffeineLevel(
     doses: [(Date, Double)],
     at targetTime: Date,
     halfLife: Double = 5.0,
-    metabolism: MetabolismRate = .medium,
-    interactions: [(extensionHours: Double, description: String)] = []
+    metabolism: MetabolismRate = .medium
 ) -> Double {
+    // One model, the one the evidence supports: exponential decay at
+    // `halfLife`, lengthened for a slow metaboliser and shortened for a fast one.
+    //
+    // K5. This used to take a fifth parameter -- an array of (hours, description)
+    // pairs -- and lengthened the half-life by the hours in it. The model it
+    // encoded was theanine-extends-caffeine, which the audit koffee_oss was forked
+    // BEFORE REFUTED (Grzegorzewski 2022: theanine has no CYP1A2 effect, so it
+    // cannot change caffeine's clearance).
+    //
+    // The coffee-only strip had already removed every caller, so the parameter was
+    // dead -- but "dead" understates an unused parameter. It is a seam: the next
+    // compound added to the stack would find a hand-hold for extending caffeine's
+    // half-life and nothing recording that the model behind it was wrong. Deleting
+    // it is how the refutation survives.
+    //
+    // The parameter is deliberately NOT named here. `InteractionExtensionRefutedTests`
+    // requires the identifier to be absent from the file entirely, including in
+    // prose, because a comment that spells the signature is a template for putting
+    // it back. A refutation is described; a rejected API is not transcribed.
     let effectiveHalfLife = halfLife * metabolism.halfLifeMultiplier
-
-    // Apply interaction extensions - reduce the decay rate when interactions are active
-    let totalExtension = interactions.reduce(0.0) { $0 + $1.extensionHours }
-    let decayMultiplier = totalExtension > 0 ? (halfLife + totalExtension) / halfLife : 1.0
 
     var total: Double = 0.0
     for (doseTime, amount) in doses {
         guard doseTime <= targetTime else { continue }
         let hoursElapsed = targetTime.timeIntervalSince(doseTime) / 3600
-        let extendedHalfLife = effectiveHalfLife * decayMultiplier
-        let remaining = amount * pow(0.5, hoursElapsed / extendedHalfLife)
+        let remaining = amount * pow(0.5, hoursElapsed / effectiveHalfLife)
         total += remaining
     }
     return total
