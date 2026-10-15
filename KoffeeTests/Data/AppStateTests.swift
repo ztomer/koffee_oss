@@ -73,8 +73,16 @@ final class AppStateTests: XCTestCase {
 
     func testDailyCaffeineLimitFollowsSensitivity() throws {
         // Bedtime limit and daily limit are different quantities: the gauge
-        // compares today's total against the daily ceiling (multiplier * 400),
-        // never against the bedtime projection limit.
+        // compares today's total against the daily ceiling, never against the
+        // bedtime projection limit.
+        //
+        // K1 changed the expectation from `0.8 * 400` to 400. This test pinned
+        // the DEFECT: it asserted that a high-sensitivity user gets 320 mg,
+        // which is only right if the sensitivity multiplier may scale the
+        // ceiling at all. It may not -- 400 mg is EFSA's adult limit and is not
+        // raised or lowered by self-report. What this test was really for is
+        // kept below: the daily limit must not become the bedtime limit, which
+        // is the distinction that actually has teeth.
         var profile = try appState.getOrCreateProfile()
         profile.sensitivity = Sensitivity.high.swiftDataValue
         try appState.saveProfile(profile)
@@ -87,7 +95,7 @@ final class AppStateTests: XCTestCase {
         wait(for: [exp], timeout: 2.0)
         c.cancel()
 
-        XCTAssertEqual(appState.dailyCaffeineLimit, 0.8 * 400, accuracy: 0.001)
+        XCTAssertEqual(appState.dailyCaffeineLimit, 400, accuracy: 0.001)
         XCTAssertNotEqual(appState.dailyCaffeineLimit, appState.safeCaffeineLimit)
     }
 }

@@ -55,13 +55,41 @@ outranks keeping a number stable; state each user-visible change's magnitude in
 its commit. Exit: K1-K5 closed, each with a red-first test. Size **M**, one
 session.
 
-**K1. The daily ceiling exceeds 400 mg for "low sensitivity".**
-`AppState.dailyCaffeineLimit` = `Sensitivity.multiplier` (1.2 / 1.0 / 0.8) x 400,
-so a low-sensitivity user is shown 480 mg/day as safe. 400 mg is EFSA's adult
-ceiling and is not raised by self-report (koffee_big refuses "any safety limit
-scaled by self-report"). *DONE WHEN:* the limit never exceeds 400 mg (200 mg in
-pregnancy if that input is ever added); a test pins it for every sensitivity.
-User-visible: the dashboard's safe-limit line drops for low-sensitivity users.
+**K1. The daily ceiling exceeds 400 mg for "low sensitivity" — DONE.**
+`AppState.dailyCaffeineLimit` was `Sensitivity.multiplier * 400` and `.low` has multiplier 1.2,
+so a user who described themselves as low-sensitivity was shown **480 mg/day as safe**.
+
+The fix splits two things that were welded together:
+
+  * the **ceiling** is EFSA's adult population limit (400 mg; 200 mg single doses). Nothing in
+    the app raises it — not sensitivity, not weight, not a declared habit. It is now
+    `CaffeineConstants.dailyCeilingMg`, named once, with the citation.
+  * **`multiplier` is a metabolism term.** It still drives `safeCaffeineAtBedtime` and the decay
+    model, where clearance rate is exactly the right input. Applied to a population ceiling it
+    was the right quantity in the wrong place — the same shape as a clearance rate driving a
+    dosage.
+
+Deliberately **not** user-tunable, and deliberately not lowered for high sensitivity either. The
+first draft of the test argued a fast metabolizer is a reason to be more conservative and left
+the door open at 320 mg; the implementation closed it, because "how fast do I clear caffeine" is
+not a safety margin and guessing one invents a number no source supports. `multiplier` is
+untouched.
+
+The number is now a pure static function of the sensitivity string, so it is testable without a
+database and a profile row — a safety claim that can only be checked by standing up the whole app
+is a claim nobody checks.
+
+**Red first, and for the right reason:** all four tests failed with `("480.0") is not equal to
+("400.0")`, which is the defect stated as a number.
+
+**An existing test had pinned the defect.** `AppStateTests.testDailyCaffeineLimitFollowsSensitivity`
+asserted `0.8 * 400`, i.e. that a high-sensitivity user gets 320 mg — right only if the multiplier
+may scale the ceiling at all. Updated to 400, keeping what that test was really for: the daily
+limit must never become the bedtime limit, which is the distinction with teeth.
+
+User-visible: the dashboard's safe-limit line drops from 480 mg to 400 mg for low-sensitivity
+users. Correctness outranks keeping a number stable.
+
 
 **K2. The "first coffee 90 min after waking" advice has no trial behind it.**
 Three places: `TimeConstants.firstDoseDelaySeconds` = 5400 places the daily-plan

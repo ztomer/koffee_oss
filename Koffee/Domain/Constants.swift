@@ -80,6 +80,12 @@ enum CaffeineConstants {
     static let lowSensitivityBedtimeMg: Double = 100
     static let defaultBedtimeMg: Double = 50
 
+    /// The adult daily ceiling, mg. EFSA 2015: single doses up to 200 mg and a
+    /// daily total up to 400 mg for healthy adults. This is a POPULATION safety
+    /// limit, so nothing in this app may raise it -- not a sensitivity setting,
+    /// not a weight, not a declared habit (roadmap K1).
+    static let dailyCeilingMg: Double = 400
+
     static let compoundIdPrefix: String = "CAFFEINE"
     static let caffeineCompoundUuid: String = "caffeine"
 }

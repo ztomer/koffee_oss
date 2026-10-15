@@ -79,8 +79,19 @@ final class AppState: ObservableObject {
     /// Daily intake ceiling (weight/sensitivity-derived). The bedtime limit
     /// governs the *bedtime projection*; this governs *today's total*.
     var dailyCaffeineLimit: Double {
-        guard let profile = profile else { return 400 }
-        return (Sensitivity(swiftDataValue: profile.sensitivity)?.multiplier ?? 1.0) * 400
+        guard let profile = profile else { return CaffeineConstants.dailyCeilingMg }
+        return AppState.dailyCaffeineLimit(sensitivityRawValue: profile.sensitivity)
+    }
+
+    /// The daily ceiling for a sensitivity string, as a pure function of it.
+    ///
+    /// Split out from the property above so the ceiling is testable without a
+    /// database and a profile row: the number is a SAFETY claim, and a safety
+    /// claim that can only be checked by standing up the whole app is a claim
+    /// nobody checks. See K1.
+    static func dailyCaffeineLimit(sensitivityRawValue: String) -> Double {
+        let sensitivity = Sensitivity(swiftDataValue: sensitivityRawValue) ?? .medium
+        return sensitivity.dailyCeilingMg
     }
 
     var effectiveWakeTime: Date {
