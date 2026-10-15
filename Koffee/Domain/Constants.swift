@@ -8,7 +8,6 @@ enum TimeConstants {
     static let twoHourSeconds: TimeInterval = 7200
     static let fourHourSeconds: TimeInterval = 14400
     static let sevenHourSeconds: TimeInterval = 25200
-    static let firstDoseDelaySeconds: TimeInterval = 5400
     static let pKStepSeconds: TimeInterval = 300
     static let pKIntervalSeconds: TimeInterval = halfHourSeconds
     static let competitionWindowSeconds: TimeInterval = secondsPerHour

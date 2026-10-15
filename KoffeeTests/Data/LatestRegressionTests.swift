@@ -224,7 +224,9 @@ final class LatestRegressionTests: XCTestCase {
         XCTAssertTrue(allCases.contains(.caffeine))
         XCTAssertEqual(NootropicCompound.caffeine.optimalDoseMg, 95)
         XCTAssertEqual(NootropicCompound.caffeine.halfLifeHours, 5.0)
-        XCTAssertEqual(NootropicCompound.caffeine.recommendedTimingMinutes, 90)
+        // K2: `recommendedTimingMinutes` used to be asserted here at 90 — a
+        // declared post-wake recommendation with no consumer anywhere in the
+        // app and no trial behind it. The field is gone, not the assertion.
     }
 
     private func setupFullSchema(_ db: DatabaseQueue) throws {

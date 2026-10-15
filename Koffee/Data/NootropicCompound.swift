@@ -17,8 +17,6 @@ enum NootropicCompound: String, CaseIterable, Identifiable {
 
     var synergyBenefit: String? { "Primary stimulant, increases alertness and focus" }
 
-    var recommendedTimingMinutes: Double { 90 }
-
     /// Requires lipid/fat for absorption (fat-soluble compounds)
     var requiresLipid: Bool { false }
 
@@ -40,7 +38,10 @@ enum NootropicCompound: String, CaseIterable, Identifiable {
     var mechanismOfAction: String { "Adenosine receptor antagonist" }
 
     var explanation: String {
-        "Primary stimulant. Blocks adenosine to increase alertness. Best taken 90 min after waking to avoid afternoon crash."
+        // K2: this ended "Best taken 90 min after waking to avoid afternoon crash" —
+        // an unsourced recommendation with a mechanism (morning cortisol) that is
+        // backwards. A stated dose is evidence; a stated clock time is not.
+        "Primary stimulant. Blocks adenosine to increase alertness."
     }
 
     var colorForCompound: String { "orange" }

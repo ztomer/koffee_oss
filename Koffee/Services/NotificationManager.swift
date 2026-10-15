@@ -1,6 +1,21 @@
 import Foundation
 import UserNotifications
 
+/// Every string this app puts in front of the user from a notification, named.
+///
+/// K2: these were inline literals in `scheduleMorningWakeUp`, which meant the
+/// claim they carried — "first coffee in 90 minutes for optimal cortisol
+/// alignment" — could not be asserted on by any test. Copy that cannot be
+/// tested is copy that cannot be corrected, and nothing about a string literal
+/// records where its claim came from. Naming them is what makes the K2 scan
+/// possible; the scan is in `NoPostWakeDelayClaimTests`.
+enum NotificationCopy {
+    static let morningTitle = "Good Morning"
+
+    /// No delay from waking, and no mechanism. See K2.
+    static let morningBody = "Time to start your day."
+}
+
 /// Caffeine-only reminders: cutoff warning before bed and the morning
 /// first-coffee nudge. The former stack / hydration / compound reminders
 /// were removed in the coffee-only strip.
@@ -43,8 +58,8 @@ class NotificationManager {
 
     func scheduleMorningWakeUp(wakeTime: Date) async {
         let content = UNMutableNotificationContent()
-        content.title = "Good Morning"
-        content.body = "Time to start your day. First coffee in 90 minutes for optimal cortisol alignment."
+        content.title = NotificationCopy.morningTitle
+        content.body = NotificationCopy.morningBody
         content.sound = .default
 
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: wakeTime)

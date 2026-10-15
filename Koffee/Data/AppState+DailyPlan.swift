@@ -40,14 +40,20 @@ extension AppState {
             _ = try? dbWrite { db in try item.delete(db) }
         }
 
-        // Generate the caffeine schedule: one item 90 min after wake,
-        // but only when caffeine is in the user's stack
+        // Generate the caffeine schedule: one item at wake, but only when
+        // caffeine is in the user's stack.
+        //
+        // K2: this used to place the item at wake + `firstDoseDelaySeconds`
+        // (5400, "first coffee 90 minutes after waking"). No RCT backs a
+        // post-wake delay and the cortisol rationale behind it is backwards
+        // (koffee_big grades the claim tier `none`). Deleting the constant
+        // rather than zeroing it means nothing can quietly reintroduce one.
         let includesCaffeine = profile.stackCompounds.contains { $0.lowercased() == "caffeine" }
 
         debugLog("refreshDailyPlan: stack compounds = \(profile.stackCompounds)")
 
         if includesCaffeine {
-            let firstDoseTime = wakeTime.addingTimeInterval(TimeConstants.firstDoseDelaySeconds) // 90 min after wake
+            let firstDoseTime = wakeTime
             let caffeineId = "CAFFEINE-\(dayKey)"
             let todayDoses = try doseRepo.dosesForDate(now)
             let caffeineLogged = todayDoses.contains { $0.id == caffeineId }
