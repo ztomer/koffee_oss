@@ -33,7 +33,9 @@ K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
 every launch, and because the test host is the app, a push did it too —
 `tools/gate.sh --full` was green over it throughout. Both halves are closed in **Phase 0c**
 (L1, L2, `5ec4301`). The harness that went looking is built now (**G4**, `2afc200`), and its first
-render found a third thing (**L3**, Phase 0d): the chart silently drops doses over 150 mg.
+render found a third thing (**L3**, Phase 0d): the chart silently dropped doses over 150 mg — fixed at
+`4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets) and **L5**
+("Peak" is the first dose's peak, not the curve's).
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -414,30 +416,59 @@ is the harness's precondition, not a preference: a render harness runs in this s
 
 ## Phase 0d — found by the first render (2026-10-16)
 
-The harness's first screenshot (G4) put two bedtime numbers on one screen. One cause, and it is a
-filter nobody meant to write.
+The harness's first screenshot (G4) put two bedtime numbers on one screen. Three defects sit behind
+that disagreement — one fixed, two filed from the same render.
 
-**L3. The chart drops every dose over 150 mg. — OPEN.**
-`generateUnifiedCurvePoints` (`Koffee/Data/Models.swift:171`) runs
+**L3. The chart drops every dose over 150 mg. — DONE (`4fb39d9`).**
+`generateUnifiedCurvePoints` (`Koffee/Data/Models.swift:171`) ran
 `doses.filter { _, mg in mg <= 150 }`, directly under a comment that promises "Chart what the caller
-passed - no wall-clock filtering here". No wall-clock filtering does happen — but a magnitude filter
-does, so every dose above 150 mg is missing from the curve **and from the three stats the chart reads
+passed - no wall-clock filtering here". No wall-clock filtering did happen — but a magnitude filter
+did, so every dose above 150 mg was missing from the curve **and from the three stats the chart reads
 off that curve**: `Current Caffeine`, `At Bedtime` and `Peak` (`UnifiedChartView.swift:188-196`).
 
-Evidence, from one render of the `dashboard` surface: the fixture logs 200 mg at 15:00 and plans 95 mg
-at wake. The app's own trace prints `caffeine for calc: 1/2`; the curve's stat row reads
-**"At Bedtime 10mg"** (the 95 mg plan item alone) while the banner reads **"Put the pot down — 65mg at
-bedtime"**, projecting from `appState.todayDoses` through `projectBedtimeCaffeine`. Same screen, same
-instant, two answers to one question. (Set the same 200 mg dose below 150 and the two agree.)
+Evidence, from one render of the `dashboard` surface before the fix: the fixture logs 200 mg at 15:00
+and plans 95 mg at wake. The app's own trace printed `caffeine for calc: 1/2`; the curve's stat row
+read **"At Bedtime 10mg"** (the 95 mg plan item alone) while the banner read **"Put the pot down —
+65mg at bedtime"**, projecting from `appState.todayDoses` through `projectBedtimeCaffeine`. Same
+screen, same instant, two answers.
 
-Not fixed here, because it wants its own red-first test — a 200 mg dose must appear in the curve.
-Why the limit exists is no longer a mystery, and `git log -S` answers it: it arrived with `bd2134d`
+Why the limit existed is no longer a mystery, and `git log -S` answers it: it arrived with `bd2134d`
 "Strip non-coffee features: coffee/caffeine-only app" (2026-09-08), where a magnitude ceiling stood in
 for "this is a caffeine dose, not L-theanine or magnesium" — the tuple the chart is handed carries no
 compound, so a magnitude proxy was what there was. The app is caffeine-only now, so the proxy has no
-reason left and the filter is pure loss: the fix is to delete it rather than to port it to a compound
+reason left and the filter is pure loss: the fix **deleted** it rather than porting it to a compound
 check (`DoseRepository.add` writes `compoundUuid == nil` for every normally logged dose, so a compound
 filter would drop all of them — which is likely why nobody wrote one).
+
+Red first, `CurveDoseMagnitudeTests`: a 200 mg dose must reach the curve at its taken size (read
+`0.0`), and the curve's bedtime value must equal `projectBedtimeCaffeine`'s on the same dose (read
+`0.0` against `65.98`). After: the dose is drawn — the curve steps 27 → 200 at 15:00 and the axis
+rescales to 200 — and the `caffeine for calc` trace is gone.
+
+**The sentence this item used to carry was wrong, and the render is how it was caught.** It said "set
+the same 200 mg dose below 150 and the two agree". The post-fix render refutes it: the stat row reads
+**"At Bedtime 76mg"** against the banner's 65mg, and 76 = 65 + 10, the pending plan item. The filter
+was one cause; the dose set is another.
+
+**L4. Two bedtime numbers, two dose sets. — OPEN.**
+`UnifiedChartView`'s stat row reads the curve, which is built from `compositeDoses` — logged doses
+*plus pending plan items* — while `projectBedtimeCaffeine` is called with `appState.todayDoses`,
+logged only. Measured on the post-L3 `dashboard` render: stat row **76mg**, banner **65mg**, the 10 mg
+difference being the 95 mg plan item planted at wake. The funnel's own comment says every surface
+showing "caffeine at bedtime" must call it and never a local heuristic; the chart's stat row still
+does not, so the fix is either the chart calling the funnel or the funnel taking the composite set.
+Which set is correct is a product ruling: the app draws the plan item as a dose it expects you to
+take, and "Put the pot down" is advice about the rest of the day — both argue the funnel should
+include it — but a pending item is not yet in you. Needs the owner's ruling, not a guess.
+
+**L5. "Peak" is the first dose's peak, not the curve's. — OPEN.**
+`UnifiedChartView.swift:195` computes `peakTime = doses.first?.time + 45min`, so the label names when
+the *earliest* dose peaks — approximately right only while the first dose of the day dominates. The
+model has no absorption term (`calculateCaffeineLevel` is pure decay, so the true curve peaks at the
+dose instant), which makes the +45 min a fixed allowance on top. L3 is what made this visible: before
+it the drawn curve's maximum was at 07:00 and the label said 07:45; after it the curve's maximum is at
+15:00 and the label still says **"Peak 07:45"**, printed beside it. Fix is the max of the curve, not
+`first + 45min`.
 
 ## Phase 2 — product (only after Phase 0b)
 
