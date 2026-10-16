@@ -165,14 +165,14 @@ func generateUnifiedCurvePoints(
     var points: [UnifiedCurvePoint] = []
     var currentTime = startTime
 
-    // Chart what the caller passed - no wall-clock filtering here. The old
-    // `$0.0 <= now` filter made this pure function clock-dependent and
-    // silently dropped planned/future doses the caller asked to display.
-    let caffeineDoses = doses.filter { _, mg in mg <= 150 }
-    debugLog("  caffeine for calc: \(caffeineDoses.count)/\(doses.count)")
-
+    // Chart exactly what the caller passed. Two filters have stood here and both were wrong: an
+    // `$0.0 <= now` filter made this pure function clock-dependent and silently dropped planned and
+    // future doses the caller asked to display, and the `mg <= 150` ceiling that replaced it (L3)
+    // arrived with the coffee-only strip as a stand-in for "this is a caffeine dose, not something
+    // else in the stack" — which silently dropped every real dose above 150mg, and with them the
+    // curve's agreement with `projectBedtimeCaffeine`, the one bedtime funnel.
     while currentTime <= endTime {
-        let caffeineLevel = calculateCaffeineLevel(doses: caffeineDoses, at: currentTime, metabolism: metabolism)
+        let caffeineLevel = calculateCaffeineLevel(doses: doses, at: currentTime, metabolism: metabolism)
 
         points.append(UnifiedCurvePoint(
             time: currentTime,
