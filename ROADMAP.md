@@ -430,11 +430,14 @@ at wake. The app's own trace prints `caffeine for calc: 1/2`; the curve's stat r
 bedtime"**, projecting from `appState.todayDoses` through `projectBedtimeCaffeine`. Same screen, same
 instant, two answers to one question. (Set the same 200 mg dose below 150 and the two agree.)
 
-Not fixed here, because it wants its own red-first test — a 200 mg dose must appear in the curve — and
-its own look at why the limit is there at all: `DoseRepository.add` writes doses with
-`compoundUuid == nil`, so a filter by compound would not have worked either, and the magnitude limit
-has no stated reason anywhere. 150 mg is not a fringe dose; a 200 mg caffeine pill is a dose this app
-is for.
+Not fixed here, because it wants its own red-first test — a 200 mg dose must appear in the curve.
+Why the limit exists is no longer a mystery, and `git log -S` answers it: it arrived with `bd2134d`
+"Strip non-coffee features: coffee/caffeine-only app" (2026-09-08), where a magnitude ceiling stood in
+for "this is a caffeine dose, not L-theanine or magnesium" — the tuple the chart is handed carries no
+compound, so a magnitude proxy was what there was. The app is caffeine-only now, so the proxy has no
+reason left and the filter is pure loss: the fix is to delete it rather than to port it to a compound
+check (`DoseRepository.add` writes `compoundUuid == nil` for every normally logged dose, so a compound
+filter would drop all of them — which is likely why nobody wrote one).
 
 ## Phase 2 — product (only after Phase 0b)
 
