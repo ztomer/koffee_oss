@@ -32,7 +32,8 @@ K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
 **Found and fixed 2026-10-16:** the app's launch path deleted and recreated the user's profile on
 every launch, and because the test host is the app, a push did it too —
 `tools/gate.sh --full` was green over it throughout. Both halves are closed in **Phase 0c**
-(L1, L2, `5ec4301`). The screenshot harness that went looking and found it is still open (**G4**).
+(L1, L2, `5ec4301`). The harness that went looking is built now (**G4**, `2afc200`), and its first
+render found a third thing (**L3**, Phase 0d): the chart silently drops doses over 150 mg.
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -343,14 +344,35 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   instead — annoying, and the safe direction to fail in, because noticing a print that came back
   is the entire job.
 
-- **G4. The recurring user-POV screenshot rule has no harness — OPEN.**
-  "User-POV screenshot at native pixels for every visual change" is a standing constraint with
-  nothing behind it: the repo has no render path and no render target, so the only way to take one
-  today is to launch the app on top of the owner's live data. The harness is one artifact at a time,
-  headless, deterministic and to a file: `KOFFEE_RENDER=<surface>` renders one surface and exits,
-  the surface named from a catalog, the fixture built through `TestDatabase` (in-memory). L2
-  (`5ec4301`) removed the precondition that blocked it — the process it runs in no longer opens the
-  user's database — so what remains is the harness itself.
+- **G4. The recurring user-POV screenshot rule has no harness — DONE (`2afc200`).**
+  "User-POV screenshot at native pixels for every visual change" was a standing constraint with
+  nothing behind it: the repo had no render path and no render target, so the only way to take one was
+  to launch the app on top of the owner's live data. It is now one command, one surface, no window:
+
+      KOFFEE_RENDER=<surface> KOFFEE_RENDER_OUT=out.png \
+        .build/harness/Build/Products/Debug/Koffee.app/Contents/MacOS/Koffee
+
+  The catalog is `dashboard` (the plan's first item at wake, the bedtime sentence, the bedtime HUD)
+  and `notifications` (the dose-dependent cutoff line). The fixture is built in an **in-memory**
+  database through the same repositories the app reads, so a render never opens the user's file; the
+  process is also given a scratch store for the singleton (L2). The PNG is 2× the point size — native
+  pixels — with the appearance pinned light, so a dark-mode Mac is not the variable.
+
+  Three things made two renders of the dashboard differ, each found by the harness's own gate rather
+  than by eye, and each closed: `BubbleGenerator`'s `Int.random` layout (seeded while rendering), the
+  liquid's `TimelineView(.animation)` stepping the physics on every draw
+  (`LiquidContainerConfiguration.animates` now stops the step rather than only pausing the schedule),
+  and `.symbolEffect(.bounce, value:)` on the banner's icon, which a snapshot catches mid-bounce (the
+  harness disables animations in the render's transaction). Two renders are now byte-identical, and
+  that is checked, along with the catalog refusing a name it cannot draw and each picture holding more
+  than a flat colour.
+
+  **What it must never claim:** the animated liquid, and any picture whose content moves with the wall
+  clock. `DashboardView` and `AppState` read `Date()` directly, so every fixture here places its doses
+  *ahead* of the render instant — an empty tank, and a level that would otherwise drift between two
+  renders seconds apart. A fixture with caffeine in it therefore wants a pinned clock first (one seam
+  the views and `AppState` read, which is its own item), and only then can the tank, the "Current
+  Caffeine" stat and the curve's shape be screenshotted as a stable artifact.
 
 ## Phase 0c — the launch path and the user's data (found 2026-10-16)
 
@@ -390,6 +412,30 @@ Fix at the one singleton: under `XCTestConfigurationFilePath`, `DatabaseManager.
 per-process scratch file, so the suite gets its own store and the user's file is never opened. This
 is the harness's precondition, not a preference: a render harness runs in this same process.
 
+## Phase 0d — found by the first render (2026-10-16)
+
+The harness's first screenshot (G4) put two bedtime numbers on one screen. One cause, and it is a
+filter nobody meant to write.
+
+**L3. The chart drops every dose over 150 mg. — OPEN.**
+`generateUnifiedCurvePoints` (`Koffee/Data/Models.swift:171`) runs
+`doses.filter { _, mg in mg <= 150 }`, directly under a comment that promises "Chart what the caller
+passed - no wall-clock filtering here". No wall-clock filtering does happen — but a magnitude filter
+does, so every dose above 150 mg is missing from the curve **and from the three stats the chart reads
+off that curve**: `Current Caffeine`, `At Bedtime` and `Peak` (`UnifiedChartView.swift:188-196`).
+
+Evidence, from one render of the `dashboard` surface: the fixture logs 200 mg at 15:00 and plans 95 mg
+at wake. The app's own trace prints `caffeine for calc: 1/2`; the curve's stat row reads
+**"At Bedtime 10mg"** (the 95 mg plan item alone) while the banner reads **"Put the pot down — 65mg at
+bedtime"**, projecting from `appState.todayDoses` through `projectBedtimeCaffeine`. Same screen, same
+instant, two answers to one question. (Set the same 200 mg dose below 150 and the two agree.)
+
+Not fixed here, because it wants its own red-first test — a 200 mg dose must appear in the curve — and
+its own look at why the limit is there at all: `DoseRepository.add` writes doses with
+`compoundUuid == nil`, so a filter by compound would not have worked either, and the magnitude limit
+has no stated reason anywhere. 150 mg is not a fringe dose; a 200 mg caffeine pill is a dose this app
+is for.
+
 ## Phase 2 — product (only after Phase 0b)
 
 The 2026-09-08 loop goal ("make this the best coffee intake app in history")
@@ -408,7 +454,8 @@ forecast and quick-log. Size **M** each.
 ## Recurring gates (run them every pass)
 
 - Greyscale single-channel check on every new visual distinction.
-- User-POV screenshot at native pixels for every visual change.
+- User-POV screenshot at native pixels for every visual change — now one command per surface
+  (`KOFFEE_RENDER=dashboard|notifications`, see G4), not a launch over the owner's data.
 - New tests must go red first (break the code once) before trusting green.
 
 ## Sources consolidated (2026-10-12)
