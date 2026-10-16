@@ -184,6 +184,22 @@ struct CaffeineTimelineChart: View {
         .padding(.top, 2)
     }
 
+    /// The instant the row annotates as the day's peak: where the drawn curve is highest.
+    ///
+    /// This used to be `doses.first?.time` plus a 45-minute absorption allowance, which named the
+    /// *earliest* dose's peak — so a later, larger dose left the label behind (L5: the row printed
+    /// "Peak 07:45" under a curve that topped out at 15:00). `Current Caffeine` and `At Bedtime` on
+    /// the same row are read off this curve, and the peak is derived from it now too. The model has
+    /// no absorption term (`calculateCaffeineLevel` is pure decay), so if one is ever added the
+    /// label follows it rather than needing another allowance here.
+    ///
+    /// Exposed rather than private so a test can assert the value instead of reading it off a
+    /// rendered label.
+    var peakInstant: Date? {
+        guard !doses.isEmpty else { return nil }
+        return chartData.max { $0.mg < $1.mg }?.time
+    }
+
     private var currentStatusView: some View {
         let now = Date()
         let currentData = chartData.first { $0.time >= now } ?? chartData.last
@@ -191,8 +207,7 @@ struct CaffeineTimelineChart: View {
         let bedtimeData = chartData.last { $0.time <= sleepTime } ?? chartData.last
         let bedtimeCaffeine = bedtimeData?.mg ?? 0
 
-        // Calculate peak time (caffeine peaks at ~45 min)
-        let peakTime = doses.first?.time?.addingTimeInterval(45 * 60) ?? Date()
+        let peakTime = peakInstant ?? Date()
         let isPeakPast = peakTime < Date()
 
         return HStack(spacing: 16) {
