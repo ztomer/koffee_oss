@@ -102,12 +102,6 @@ struct HistoryView: View {
         )
     }
 
-    /// Projects a wall-clock time (hour/minute from the profile) onto a date.
-    private func transposedWallTime(from wallTime: Date, onto date: Date, calendar: Calendar) -> Date {
-        let comps = calendar.dateComponents([.hour, .minute, .second], from: wallTime)
-        return calendar.date(bySettingHour: comps.hour ?? 0, minute: comps.minute ?? 0, second: comps.second ?? 0, of: date) ?? date
-    }
-
     private var dateNavigationHeader: some View {
         VStack(spacing: 12) {
             HStack {

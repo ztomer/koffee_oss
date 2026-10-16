@@ -8,12 +8,31 @@ final class DatabaseManager {
     private var dbQueue: DatabaseQueue?
     private(set) var isReady = false
 
-    static let dbURL: URL = {
+    /// Whether this process is a test host. `xcodebuild test` puts this variable in the process it
+    /// injects the bundle into, and for this target that process is `Koffee.app` itself
+    /// (`project.yml`'s `TEST_HOST`) — so this app's launch path runs for every test run.
+    static var isTestingProcess: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    /// The database the *app* owns. Untouched by the guard below; kept as its own constant so a
+    /// test can assert the app's own path was not moved by the fix.
+    static let appSupportDatabaseURL: URL = {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = appSupport.appendingPathComponent("Koffee", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("koffee.sqlite")
     }()
+
+    /// A test process gets a scratch file of its own, never the user's.
+    ///
+    /// The suite reaches this singleton (through `AppState+DailyPlan`'s `dbWrite` and
+    /// `BeverageManager`), and the gate runs the suite on every push — so while `dbURL` was the
+    /// user's file, a push read and wrote the user's own database.
+    static let dbURL: URL = isTestingProcess
+        ? FileManager.default.temporaryDirectory
+            .appendingPathComponent("koffee-tests-\(ProcessInfo.processInfo.processIdentifier).sqlite")
+        : appSupportDatabaseURL
 
     private init() {}
 

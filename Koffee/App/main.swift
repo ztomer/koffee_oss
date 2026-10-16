@@ -147,34 +147,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 debugLog("STEP 3: Seeded beverages")
 
-                // Create profile with proper wake/sleep times for today
+                // Roll the stored profile onto today rather than replacing it (L1, Phase 0c).
+                //
+                // The dates have to be today's — `refreshDailyPlan` places the plan's first item
+                // AT `wakeTime` — but only the dates. Deleting the row here also reset wake time,
+                // sleep time, sensitivity, metabolism, weight and stack compounds on every launch,
+                // and on every test run, because this process is also the test host.
                 let now = Date()
-                let calendar = Calendar.current
-
-                // Get today's date in local timezone
-                let todayStart = calendar.startOfDay(for: now)
-                let wakeTime = calendar.date(byAdding: .hour, value: 7, to: todayStart)!
-                let sleepTime = calendar.date(byAdding: .hour, value: 23, to: todayStart)!
-
-                debugLog("STEP 4: Creating profile with wakeTime=\(wakeTime.timeIntervalSince1970), sleepTime=\(sleepTime.timeIntervalSince1970)")
-
-                // Delete any existing profile first to ensure fresh data
-                _ = try await db.write { db in
-                    try UserProfileModel.deleteAll(db)
+                let hadProfile = try await db.read { db in
+                    try UserProfileModel.fetchOne(db) != nil
                 }
-
-                // Create profile with default stack compounds
-                let profile = UserProfileModel(
-                    wakeTime: wakeTime,
-                    sleepTime: sleepTime,
-                    stackCompounds: [
-                    NootropicCompound.caffeine.rawValue
-                ]
-                )
                 try await db.write { db in
-                    try profile.save(db)
+                    try ProfileDayRoll.store(in: db, day: now)
                 }
-                debugLog("STEP 4: Profile created with stack compounds")
+
+                debugLog("STEP 4: Profile stored, existing=\(hadProfile)")
 
                 // Now create repos - they'll read initial values from DB
                 let beverageRepo = BeverageRepository(db: db)
