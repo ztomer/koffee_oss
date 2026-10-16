@@ -36,7 +36,8 @@ every launch, and because the test host is the app, a push did it too —
 render found a third thing (**L3**, Phase 0d): the chart silently dropped doses over 150 mg — fixed at
 `4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets — open, needs a ruling
 on the dose set) and **L5** ("Peak" named the first dose's peak, not the curve's — fixed at
-`1683c6f`).
+`1683c6f`). The harness's own limit is gone too (**G5**, `fa60bfa`): the clock is one seam a render
+pins, so a picture is a function of the instant asked for rather than of when it was drawn.
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -371,11 +372,41 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   than a flat colour.
 
   **What it must never claim:** the animated liquid, and any picture whose content moves with the wall
-  clock. `DashboardView` and `AppState` read `Date()` directly, so every fixture here places its doses
-  *ahead* of the render instant — an empty tank, and a level that would otherwise drift between two
-  renders seconds apart. A fixture with caffeine in it therefore wants a pinned clock first (one seam
-  the views and `AppState` read, which is its own item), and only then can the tank, the "Current
-  Caffeine" stat and the curve's shape be screenshotted as a stable artifact.
+  clock. That second half was true when it was written — every fixture pointed its doses *ahead* of the
+  render instant, an empty tank, a level that drifted between two renders seconds apart — and **G5**
+  closed it: the tank, the "Current Caffeine" stat and the curve's shape are stable artifacts now.
+
+- **G5. One seam for the clock, so a render is a function of the instant it names — DONE (`fa60bfa`).**
+  `DateHelper.now` was the door and exactly one call site used it; everything else called `Date()`. A
+  render therefore drew whatever the wall clock said at that moment — which is why G4's fixtures all
+  pointed away from "now", and why its own reproducibility test could only fail while two renders
+  happened to land in the same 30-minute sample. `DateHelper.pinnedNow` is the seam (a `Mutex<Date?>`,
+  because it is read from main-actor views *and* from GRDB's write queue), and `nil` is the app: the real
+  clock, every routed site byte-for-byte what it was. `RenderHarness.render(_:at:)` freezes it for one
+  draw and restores what it found, so a render cannot leak into the app or into the next test.
+
+  Two sites keep the wall clock, and the lock names them: the harness's `settle` waits in *real* time for
+  SwiftUI to lay out (a deadline of "the pinned instant plus 0.4 s" would return immediately for a
+  fixture dated in the past), and the process log's timestamp says when a line was written rather than
+  what the app thinks today is. The lock itself is `WallClockDoorTests`: it walks `Koffee/`, skips
+  comments, and fails on any `Date()` or `Date.now` outside the allowlist — and **an entry that has gone
+  stale fails too**, so the list cannot rot into a description of code that no longer exists. Calibrated
+  in both directions: a planted `Date()` in `FocusWindow.swift` was listed by file and line, and an
+  allowance of 4 where only 3 exist was reported stale.
+
+  The harness pins **noon** on the fixture's day — the hour the existing exhibits were drawn and verified
+  at — and `KOFFEE_RENDER_AT=HH:MM` moves it, so "draw the evening state" is a command rather than an
+  edit. A value that is not a time is refused (`BadInstant`: exit 1, no PNG) the way an unknown surface
+  is. Evidence, two separate processes each: default renders byte-identical (`cmp`), 16:00 ≠ noon, and
+  the difference is exactly the clock-driven elements — `Current Caffeine` 47 mg → 201 mg, the ring's arc,
+  the tank's bubble count, "Peak At 15:00" → "Peak 15:00" — while the curve and the bedtime projection
+  are unchanged. The owner's live database is untouched through all of it (`Oct 16 10:26:47`).
+
+  What it does not do: the fixture's doses are fixed times on its day, so the pin chooses *which of them*
+  is already in the tank, rather than expressing a state the fixture cannot build. And the tank's level
+  still comes from logged doses alone while the chart draws logged doses *plus* pending plan items — the
+  L4 question, now visible in a third surface: at noon `currentCaffeineLevel` is 0 beside a
+  "Current Caffeine" of 47 mg.
 
 ## Phase 0c — the launch path and the user's data (found 2026-10-16)
 
@@ -461,6 +492,11 @@ does not, so the fix is either the chart calling the funnel or the funnel taking
 Which set is correct is a product ruling: the app draws the plan item as a dose it expects you to
 take, and "Put the pot down" is advice about the rest of the day — both argue the funnel should
 include it — but a pending item is not yet in you. Needs the owner's ruling, not a guess.
+
+**A third surface turned up with the clock pin (G5).** `AppState.currentCaffeineLevel` — the tank, and
+the level the dashboard's ring draws — is computed from `self.doses` filtered to today, logged only, so
+at the noon pin it reads **0** while the chart's stat row reads **47mg**. It is the same ruling: whichever
+set is correct has to be the set the tank, the chart's stat row and the banner all read.
 
 **L5. "Peak" is the first dose's peak, not the curve's. — DONE (`1683c6f`).**
 `UnifiedChartView.swift:195` computed `peakTime = doses.first?.time + 45min`, so the label named when
