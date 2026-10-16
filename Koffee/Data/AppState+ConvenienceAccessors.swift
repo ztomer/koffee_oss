@@ -12,7 +12,7 @@ extension AppState {
     }
 
     var takenPlanItemIds: Set<String> {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return Set(dailyPlanItems.filter {
             $0.status == .taken && $0.scheduledTime >= today && $0.scheduledTime < tomorrow
@@ -20,7 +20,7 @@ extension AppState {
     }
 
     var skippedPlanItemIds: Set<String> {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return Set(dailyPlanItems.filter {
             $0.status == .skipped && $0.scheduledTime >= today && $0.scheduledTime < tomorrow
@@ -28,7 +28,7 @@ extension AppState {
     }
 
     var pendingPlanItemsToday: [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return dailyPlanItems.filter {
             $0.status == .pending && $0.scheduledTime >= today && $0.scheduledTime < tomorrow
@@ -36,7 +36,7 @@ extension AppState {
     }
 
 func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return dailyPlanItems.filter {
             $0.compoundUuid == compoundUuid &&
@@ -47,7 +47,7 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
     }
 
     func pendingPlanItemsByStatus(_ status: PlanItemStatus) -> [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return dailyPlanItems.filter {
             $0.status == status &&
@@ -57,7 +57,7 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
     }
 
     func pendingPlanItemsTodayByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return dailyPlanItems.filter {
             $0.compoundUuid == compoundUuid &&
@@ -72,7 +72,7 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
     }
 
     var visiblePlanItems: [DailyPlanItemModel] {
-        let today = DateHelper.calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
         let tomorrow = DateHelper.calendar.date(byAdding: .day, value: 1, to: today)!
         return dailyPlanItems.filter {
             $0.status != .optimizedAway &&
@@ -112,8 +112,8 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
 
     /// Bedtime projection for today doses plus one hypothetical beverage dose
     /// at `at`. Uses the single decay funnel `projectBedtimeCaffeine`.
-    func projectedBedtimeCaffeine(byAdding beverage: BeverageModel, at: Date = Date()) -> Double {
-        let now = Date()
+    func projectedBedtimeCaffeine(byAdding beverage: BeverageModel, at: Date = DateHelper.now) -> Double {
+        let now = DateHelper.now
         let todayDoses = dosesForDate(now).map { ($0.timestamp, $0.caffeineMg) }
         var combined = todayDoses
         combined.append((at, Double(beverage.caffeineMg)))
@@ -130,7 +130,7 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
 }
 
 /// Consecutive days with at least one dose, ending today. Pure for testing.
-func consecutiveDayStreak(doses: [DoseModel], calendar: Calendar, now: Date = Date()) -> Int {
+func consecutiveDayStreak(doses: [DoseModel], calendar: Calendar, now: Date = DateHelper.now) -> Int {
     var streak = 0
     for offset in 0..<365 {
         guard let day = calendar.date(byAdding: .day, value: -offset, to: now) else { break }

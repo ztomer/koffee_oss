@@ -95,11 +95,11 @@ final class AppState: ObservableObject {
     }
 
     var effectiveWakeTime: Date {
-        profile?.wakeTime ?? DateHelper.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!
+        profile?.wakeTime ?? DateHelper.date(bySettingHour: 7, minute: 0, second: 0, of: DateHelper.now)!
     }
 
     var effectiveSleepTime: Date {
-        profile?.sleepTime ?? DateHelper.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!
+        profile?.sleepTime ?? DateHelper.date(bySettingHour: 23, minute: 0, second: 0, of: DateHelper.now)!
     }
 
     // MARK: - PK Levels
@@ -107,7 +107,7 @@ final class AppState: ObservableObject {
     func updateCaffeineLevels() {
         guard profile != nil else { return }
 
-        let now = Date()
+        let now = DateHelper.now
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: now)
 
@@ -144,7 +144,7 @@ final class AppState: ObservableObject {
         guard !doses.isEmpty else { return nil }
 
         let calendar = Calendar.current
-        let now = Date()
+        let now = DateHelper.now
 
         // Count consecutive days of caffeine use
         var consecutiveDays = 0
@@ -184,7 +184,7 @@ final class AppState: ObservableObject {
     let queryService: QueryService
     private var cancellables = Set<AnyCancellable>()
 
-    var todayDoses: [DoseModel] { (try? doseRepo.dosesForDate(Date())) ?? [] }
+    var todayDoses: [DoseModel] { (try? doseRepo.dosesForDate(DateHelper.now)) ?? [] }
     var todayPlanItems: [DailyPlanItemModel] { planRepo.items }
 
     init(
@@ -204,8 +204,8 @@ final class AppState: ObservableObject {
         self.beverages = beverageRepo.beverages
         debugLog("AppState.init: planRepo.items = \(planRepo.items.count)")
         self.dailyPlanItems = planRepo.items
-        self.todaySummary = queryService.summaryForDate(Date())
-        self.todayCaffeineTotal = queryService.totalCaffeineForDay(Date())
+        self.todaySummary = queryService.summaryForDate(DateHelper.now)
+        self.todayCaffeineTotal = queryService.totalCaffeineForDay(DateHelper.now)
 
         startObserving()
     }
@@ -223,8 +223,8 @@ final class AppState: ObservableObject {
             .sink { [weak self] doses in
                 guard let self = self else { return }
                 self.doses = doses
-                self.todaySummary = self.queryService.summaryForDate(Date())
-                self.todayCaffeineTotal = self.queryService.totalCaffeineForDay(Date())
+                self.todaySummary = self.queryService.summaryForDate(DateHelper.now)
+                self.todayCaffeineTotal = self.queryService.totalCaffeineForDay(DateHelper.now)
 
                 // Update PK-based caffeine levels
                 self.updateCaffeineLevels()
@@ -249,5 +249,5 @@ final class AppState: ObservableObject {
 
     /// Fallback summary when the query service is unavailable mid-teardown.
     static let emptySummary = DailySummary(
-        date: Date(), totalCaffeineMg: 0, doseCount: 0)
+        date: DateHelper.now, totalCaffeineMg: 0, doseCount: 0)
 }

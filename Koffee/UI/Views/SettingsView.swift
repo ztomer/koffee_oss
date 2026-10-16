@@ -6,18 +6,18 @@ struct SettingsView: View {
 
     @State private var weightText: String = ""
     @State private var heightValue: Double = 175
-    @State private var birthdate: Date = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+    @State private var birthdate: Date = Calendar.current.date(byAdding: .year, value: -30, to: DateHelper.now) ?? DateHelper.now
     @State private var selectedSensitivity: Sensitivity = .medium
     @State private var selectedMetabolism: MetabolismRate = .medium
-    @State private var wakeTime: Date = Date()
-    @State private var sleepTime: Date = Date()
+    @State private var wakeTime: Date = DateHelper.now
+    @State private var sleepTime: Date = DateHelper.now
 
     @State private var editingWeight: Bool = false
     @State private var editingHeight: Bool = false
     @State private var editingAge: Bool = false
 
     private var computedAge: Int {
-        Calendar.current.dateComponents([.year], from: birthdate, to: Date()).year ?? 30
+        Calendar.current.dateComponents([.year], from: birthdate, to: DateHelper.now).year ?? 30
     }
 
     var body: some View {
@@ -45,14 +45,14 @@ struct SettingsView: View {
         wakeTime = profile.wakeTime
         sleepTime = profile.sleepTime
         if profile.age > 0 {
-            birthdate = Calendar.current.date(byAdding: .year, value: -profile.age, to: Date()) ?? Date()
+            birthdate = Calendar.current.date(byAdding: .year, value: -profile.age, to: DateHelper.now) ?? DateHelper.now
         }
     }
 
     private func saveProfile(_ update: (inout UserProfileModel) -> Void) {
         guard var profile = appState.profile else { return }
         update(&profile)
-        profile.updatedAt = Date()
+        profile.updatedAt = DateHelper.now
         try? appState.saveProfile(profile)
     }
 

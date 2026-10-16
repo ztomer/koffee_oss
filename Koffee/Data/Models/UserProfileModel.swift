@@ -66,7 +66,7 @@ struct UserProfileModel: FetchableRecord, PersistableRecord, Codable, Identifiab
         toleranceResetDaysRequired: Int = 14,
         optimizationGoal: String = "balanced",
         stackCompounds: [String] = [],
-        updatedAt: Date = Date(),
+        updatedAt: Date = DateHelper.now,
         autoRefreshPlan: Bool = true,
         notificationsEnabled: Bool = true,
         toleranceAlertsEnabled: Bool = true

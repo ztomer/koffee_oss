@@ -19,9 +19,9 @@ struct DoseDetail: Identifiable {
 
 struct HistoryView: View {
     @ObservedObject var appState: AppState
-    @State private var selectedDate: Date = Date()
-    @State private var selectedYear: Int = Calendar.current.component(.year, from: Date())
-    @State private var selectedMonth: Int = Calendar.current.component(.month, from: Date())
+    @State private var selectedDate: Date = DateHelper.now
+    @State private var selectedYear: Int = Calendar.current.component(.year, from: DateHelper.now)
+    @State private var selectedMonth: Int = Calendar.current.component(.month, from: DateHelper.now)
 
     private var calendar: Calendar { Calendar.current }
 

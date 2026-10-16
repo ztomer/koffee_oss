@@ -143,7 +143,7 @@ struct NotificationsView: View {
     /// The dose the cutoff is derived from: today's largest logged dose, else the
     /// prospective standard. Never an average — averaging pulls the wall inward.
     private var todayReferenceDoseMg: Double {
-        let today = appState.dosesForDate(Date())
+        let today = appState.dosesForDate(DateHelper.now)
         let todayMax = today.map(\.caffeineMg).max() ?? 0
         return todayMax > 0 ? todayMax : CaffeineConstants.defaultDoseMg
     }

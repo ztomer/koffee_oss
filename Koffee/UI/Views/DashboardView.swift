@@ -41,7 +41,7 @@ var pendingCaffeine: Double {
     }
 
     var activeStimulantLoad: Double {
-        let now = Date()
+        let now = DateHelper.now
 
         var load: Double = 0
         let todayDoses = appState.dosesForDate(now)
@@ -55,7 +55,7 @@ var pendingCaffeine: Double {
 
     private var compositeDoses: [Dose] {
         // Use AppState method
-        let todayDoses = appState.dosesForDate(Date())
+        let todayDoses = appState.dosesForDate(DateHelper.now)
 
         let actuals = todayDoses.map { dose in
             Dose(time: dose.timestamp, amount: dose.caffeineMg, compound: .caffeine, isPlanItem: false)
@@ -265,8 +265,8 @@ var pendingCaffeine: Double {
         VStack(spacing: 8) {
             CaffeineTimelineChart(
                 doses: compositeDoses,
-                wakeTime: appState.profile?.wakeTime ?? Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: Date())!,
-                sleepTime: appState.profile?.sleepTime ?? Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())!,
+                wakeTime: appState.profile?.wakeTime ?? Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: DateHelper.now)!,
+                sleepTime: appState.profile?.sleepTime ?? Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: DateHelper.now)!,
                 safeLimit: safeLimit,
                 metabolism: MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
             )
@@ -286,8 +286,8 @@ var pendingCaffeine: Double {
 
     private func updateCaffeineLevel() {
         let doses = appState.todayDoses.map { ($0.timestamp, $0.caffeineMg) }
-        let wakeTime = appState.profile?.wakeTime ?? Date()
-        let sleepTime = appState.profile?.sleepTime ?? Date()
+        let wakeTime = appState.profile?.wakeTime ?? DateHelper.now
+        let sleepTime = appState.profile?.sleepTime ?? DateHelper.now
         let metabolism = MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
         caffeineAtBedtime = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
     }

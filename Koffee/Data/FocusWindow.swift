@@ -6,7 +6,7 @@ struct FocusWindow: Equatable {
     let peakLevel: Double
 
     var isActive: Bool {
-        let now = Date()
+        let now = DateHelper.now
         return start <= now && now <= end
     }
 }

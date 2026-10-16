@@ -113,7 +113,7 @@ struct KoffeeTimeStepper: View {
 }
 
 #Preview {
-    @Previewable @State var time = Date()
+    @Previewable @State var time = DateHelper.now
     return KoffeeTimeStepper(time: $time)
         .padding()
 }

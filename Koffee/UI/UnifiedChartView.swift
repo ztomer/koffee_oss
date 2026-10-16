@@ -200,15 +200,20 @@ struct CaffeineTimelineChart: View {
         return chartData.max { $0.mg < $1.mg }?.time
     }
 
-    private var currentStatusView: some View {
-        let now = Date()
+    /// The row's "Current Caffeine" value: the curve at the one clock door. Exposed rather than
+    /// private so a test can assert it, like `peakInstant`.
+    var currentCaffeine: Double {
+        let now = DateHelper.now
         let currentData = chartData.first { $0.time >= now } ?? chartData.last
-        let currentCaffeine = currentData?.mg ?? 0
+        return currentData?.mg ?? 0
+    }
+
+    private var currentStatusView: some View {
         let bedtimeData = chartData.last { $0.time <= sleepTime } ?? chartData.last
         let bedtimeCaffeine = bedtimeData?.mg ?? 0
 
-        let peakTime = peakInstant ?? Date()
-        let isPeakPast = peakTime < Date()
+        let peakTime = peakInstant ?? DateHelper.now
+        let isPeakPast = peakTime < DateHelper.now
 
         return HStack(spacing: 16) {
             VStack(alignment: .leading) {

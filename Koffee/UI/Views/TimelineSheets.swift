@@ -35,7 +35,7 @@ struct AddBeverageSheet: View {
     let onAdd: (BeverageModel, Date) -> Void
     let onDismiss: () -> Void
     @State private var selectedBeverageId: String?
-    @State private var selectedTime = Date()
+    @State private var selectedTime = DateHelper.now
 
     var body: some View {
         VStack(spacing: 0) {

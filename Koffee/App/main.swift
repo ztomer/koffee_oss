@@ -153,7 +153,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 // AT `wakeTime` — but only the dates. Deleting the row here also reset wake time,
                 // sleep time, sensitivity, metabolism, weight and stack compounds on every launch,
                 // and on every test run, because this process is also the test host.
-                let now = Date()
+                //
+                // `DateHelper.now`, like every other "today" in the app: a render's launch path rolls
+                // onto the instant the render is composed at, not onto the wall clock it is drawn at.
+                let now = DateHelper.now
                 let hadProfile = try await db.read { db in
                     try UserProfileModel.fetchOne(db) != nil
                 }

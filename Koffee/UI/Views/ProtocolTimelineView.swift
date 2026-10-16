@@ -15,7 +15,7 @@ struct TimelineGapView: View {
     var body: some View {
         if isActiveSegment, let prev = prevTime, let next = nextTime {
             GeometryReader { geometry in
-                let now = Date()
+                let now = DateHelper.now
                 let totalSeconds = next.timeIntervalSince(prev)
                 let elapsedSeconds = now.timeIntervalSince(prev)
                 let progress = max(0, min(1, elapsedSeconds / totalSeconds))
@@ -187,8 +187,7 @@ struct ProtocolTimelineView: View {
 
         debugLog("timelineEntries: todayPlan count = \(appState.pendingPlanItemsToday.count)")
 
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let today = DateHelper.startOfDay()
 
         // Use AppState date methods
         let todayDoses = appState.dosesForDate(today)
@@ -246,7 +245,7 @@ struct ProtocolTimelineView: View {
         let entries = timelineEntries
 
         let calendar = Calendar.current
-        let now = Date()
+        let now = DateHelper.now
         let todayStart = calendar.startOfDay(for: now)
 
         var grouped: [Date: [ProtocolTimelineEntry]] = [:]
@@ -310,7 +309,7 @@ struct ProtocolTimelineView: View {
     }
 
     private func isTimeInActiveSegment(blockTime: Date, nextBlockTime: Date?) -> Bool {
-        let now = Date()
+        let now = DateHelper.now
         if let next = nextBlockTime {
             return blockTime <= now && now < next
         }

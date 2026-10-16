@@ -11,10 +11,10 @@ extension AppState {
         if status == .taken {
             let item = planRepo.items.first { $0.id == id }
             if let item = item, item.compoundUuid == "caffeine" {
-                let todayDoses = try doseRepo.dosesForDate(Date())
+                let todayDoses = try doseRepo.dosesForDate(DateHelper.now)
                 let alreadyLogged = todayDoses.contains { $0.id == id }
                 if !alreadyLogged {
-                    try addDoseWithId(id: id, timestamp: Date(), caffeineMg: item.doseMg, beverageName: "Coffee")
+                    try addDoseWithId(id: id, timestamp: DateHelper.now, caffeineMg: item.doseMg, beverageName: "Coffee")
                 }
             }
         }
@@ -22,7 +22,7 @@ extension AppState {
         if status == .skipped {
             let item = planRepo.items.first { $0.id == id }
             if let item = item, item.compoundUuid == "caffeine" {
-                let todayDoses = try doseRepo.dosesForDate(Date())
+                let todayDoses = try doseRepo.dosesForDate(DateHelper.now)
                 if let doseToRemove = todayDoses.first(where: { $0.id == id }) {
                     try doseRepo.delete(doseToRemove)
                 }

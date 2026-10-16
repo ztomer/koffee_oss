@@ -88,6 +88,56 @@ final class RenderHarnessTests: XCTestCase {
         XCTAssertEqual(RenderHarness.run(surface: nil), 0)
     }
 
+    // MARK: - The clock
+
+    /// The same two halves as the bubble seed, for the clock: a pinned instant reproduces the picture,
+    /// and a different one does not — without the second half the first would pass just as well if the
+    /// render ignored the pin and drew the wall clock.
+    ///
+    /// The two instants straddle the dashboard fixture's own dose, which it logs eight hours after its
+    /// 07:00 wake: at 12:00 that 200mg is still ahead of the clock, at 16:00 it is in the tank.
+    func test_the_pinned_clock_is_what_decides_the_picture() throws {
+        let day = RenderHarness.defaultInstant
+        let ahead = try XCTUnwrap(RenderHarness.instant(from: "12:00", on: day))
+        let behind = try XCTUnwrap(RenderHarness.instant(from: "16:00", on: day))
+
+        let atAhead = try png(of: .dashboard, at: ahead)
+        let atBehind = try png(of: .dashboard, at: behind)
+        let atBehindAgain = try png(of: .dashboard, at: behind)
+
+        XCTAssertNotEqual(
+            atAhead, atBehind,
+            "the render ignored the pinned clock: 12:00 and 16:00 drew the same picture"
+        )
+        XCTAssertEqual(
+            atBehind, atBehindAgain,
+            "a pinned instant is not reproducible: \(difference(between: atBehind, and: atBehindAgain))"
+        )
+    }
+
+    /// The script contract for the other variable: a time that is not a time is refused rather than
+    /// quietly becoming noon, so `KOFFEE_RENDER_AT=16h` cannot pass as an evening screenshot.
+    func test_a_render_at_that_is_not_a_time_is_refused() {
+        let day = DateHelper.calendar.startOfDay(for: RenderHarness.defaultInstant)
+
+        XCTAssertNil(RenderHarness.instant(from: "25:00", on: day))
+        XCTAssertNil(RenderHarness.instant(from: "12", on: day))
+        XCTAssertNil(RenderHarness.instant(from: "noon", on: day))
+        XCTAssertNil(RenderHarness.instant(from: "16:70", on: day))
+        XCTAssertEqual(
+            RenderHarness.instant(from: "16:30", on: day),
+            day.addingTimeInterval(16 * 3600 + 30 * 60)
+        )
+
+        guard case .failure = RenderHarness.resolveInstant("sixteen") else {
+            return XCTFail("a bad KOFFEE_RENDER_AT resolved instead of failing")
+        }
+        guard case .success(let defaulted) = RenderHarness.resolveInstant(nil) else {
+            return XCTFail("no KOFFEE_RENDER_AT should resolve to the default instant")
+        }
+        XCTAssertEqual(defaulted, RenderHarness.defaultInstant)
+    }
+
     // MARK: - The bubble layout
 
     /// The dashboard's bubbles are the one thing in a render that comes from the system's entropy, so
@@ -123,7 +173,11 @@ final class RenderHarnessTests: XCTestCase {
     // MARK: - Helpers
 
     private func png(of surface: RenderHarness.Surface) throws -> Data {
-        let representation = try RenderHarness.render(surface)
+        try png(of: surface, at: RenderHarness.defaultInstant)
+    }
+
+    private func png(of surface: RenderHarness.Surface, at instant: Date) throws -> Data {
+        let representation = try RenderHarness.render(surface, at: instant)
         return try XCTUnwrap(representation.representation(using: .png, properties: [:]))
     }
 

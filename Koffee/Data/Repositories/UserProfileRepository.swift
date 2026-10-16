@@ -49,7 +49,7 @@ final class UserProfileRepository: UserProfileRepositoryProtocol {
             return existing
         }
 
-        let now = Date()
+        let now = DateHelper.now
         let wakeTime = Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: now) ?? now
         let sleepTime = Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: now) ?? now
 

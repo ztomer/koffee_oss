@@ -127,9 +127,9 @@ struct EditableTimePickerWithLabel: View {
 
 #Preview {
     VStack(spacing: 20) {
-        EditableTimePicker(selection: .constant(Date()))
-        EditableTimePickerWithLabel(selection: .constant(Date()), label: "Wake Time")
-        EditableTimePickerWithLabel(selection: .constant(Date()), label: "Sleep Time")
+        EditableTimePicker(selection: .constant(DateHelper.now))
+        EditableTimePickerWithLabel(selection: .constant(DateHelper.now), label: "Wake Time")
+        EditableTimePickerWithLabel(selection: .constant(DateHelper.now), label: "Sleep Time")
     }
     .padding()
 }

@@ -9,7 +9,7 @@ func buildTodayInterventions(
     doses: [DoseModel]
 ) -> [BiologicalIntervention] {
     let calendar = Calendar.current
-    let now = Date()
+    let now = DateHelper.now
     let todayStart = calendar.startOfDay(for: now)
     let todayEnd = calendar.date(byAdding: .day, value: 1, to: todayStart)!
 

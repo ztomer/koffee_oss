@@ -15,8 +15,21 @@ enum TimeConstants {
 
     static let defaultWakeHour: Int = 7
     static let defaultSleepHour: Int = 23
-    static let defaultWakeTime: Date? = Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: Date())
-    static let defaultSleepTime: Date? = Calendar.current.date(bySettingHour: 23, minute: 0, second: 0, of: Date())
+
+    /// A profile-less reader's wake and sleep, as 07:00 and 23:00 *today*.
+    ///
+    /// Computed rather than stored, because they are derived from the clock: a `static let` would
+    /// evaluate `DateHelper.now` once, at whatever instant first touched it, and hold that day's date
+    /// for the life of the process — the same class of mistake as half a model being derived and half
+    /// being frozen. The clock seam (G4's limit) is why this is visible at all: nothing reads them yet,
+    /// and the one that did would have read a date rather than an hour.
+    static var defaultWakeTime: Date? {
+        Calendar.current.date(bySettingHour: defaultWakeHour, minute: 0, second: 0, of: DateHelper.now)
+    }
+
+    static var defaultSleepTime: Date? {
+        Calendar.current.date(bySettingHour: defaultSleepHour, minute: 0, second: 0, of: DateHelper.now)
+    }
 }
 
 // K5. `MathConstants` (halfLifeDecayFactor, recoveryPenalty, lTheanineRatio,

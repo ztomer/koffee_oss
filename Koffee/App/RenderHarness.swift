@@ -71,11 +71,59 @@ enum RenderHarness {
         return URL(fileURLWithPath: path)
     }
 
+    /// Twelve hours into the fixture's day — the instant the surfaces' existing exhibits were drawn
+    /// and verified at, and the one an unqualified render uses.
+    ///
+    /// Noon because it is a state with something in it: the plan's first item is still ahead of the
+    /// clock (K2's row) and the day's logged dose is behind it (the tank is not a picture of nothing
+    /// by accident). This is a real `Date()` read — the harness's, to pick which day to draw — and one
+    /// of the two the seam's check allows.
+    static var defaultInstant: Date {
+        DateHelper.calendar.startOfDay(for: Date()).addingTimeInterval(12 * 3600)
+    }
+
+    /// `KOFFEE_RENDER_AT=HH:MM`, on the day `day` falls in.
+    ///
+    /// The clock seam makes a render a function of an instant rather than of when you ran it, so the
+    /// human workflow gets to name the instant: "the 200mg dose is in the tank" is a change you draw
+    /// at 16:00 rather than a change you edit code for.
+    ///
+    /// - Returns: `nil` when the value is not a time, so `run` can refuse it the way it refuses a
+    ///   surface that is not in the catalog.
+    static func instant(from raw: String, on day: Date) -> Date? {
+        let parts = raw.split(separator: ":")
+        guard parts.count == 2,
+              let hour = Int(parts[0]), let minute = Int(parts[1]),
+              (0..<24).contains(hour), (0..<60).contains(minute) else { return nil }
+        return DateHelper.calendar.startOfDay(for: day).addingTimeInterval(Double(hour * 3600 + minute * 60))
+    }
+
+    /// The instant a `run` asks for: `KOFFEE_RENDER_AT` if it is set and parses, else `defaultInstant`.
+    /// A value that does not parse is an error, not a silent noon.
+    static func resolveInstant(_ raw: String?) -> Result<Date, BadInstant> {
+        guard let raw else { return .success(defaultInstant) }
+        guard let instant = instant(from: raw, on: Date()) else {
+            return .failure(BadInstant(raw: raw))
+        }
+        return .success(instant)
+    }
+
+    static var requestedInstant: Result<Date, BadInstant> {
+        resolveInstant(ProcessInfo.processInfo.environment["KOFFEE_RENDER_AT"])
+    }
+
+    /// A `KOFFEE_RENDER_AT` that is not a time. Its own type so the refusal cannot be mistaken for a
+    /// surface that failed to draw.
+    struct BadInstant: Error {
+        let raw: String
+    }
+
     /// Draws the requested surface.
     ///
     /// - Returns: the status the process should exit with — 0 when a PNG was written, 1 when the
-    ///   request could not be answered (a surface that is not in the catalog, or a failure drawing
-    ///   it), so a caller scripting this can tell "wrote the picture" from "did not".
+    ///   request could not be answered (a surface that is not in the catalog, a `KOFFEE_RENDER_AT`
+    ///   that is not a time, or a failure drawing it), so a caller scripting this can tell "wrote the
+    ///   picture" from "did not".
     @MainActor
     static func run() -> Int32 {
         run(surface: requestedSurface)
@@ -92,15 +140,24 @@ enum RenderHarness {
             return 1
         }
 
+        let instant: Date
+        switch requestedInstant {
+        case .success(let requested):
+            instant = requested
+        case .failure(let bad):
+            warn("KOFFEE_RENDER_AT must be HH:MM, not '\(bad.raw)'")
+            return 1
+        }
+
         // Views want an application behind them: fonts, appearance, colour spaces. Accessory, so a
         // render never takes the foreground from whatever the owner is doing.
         _ = NSApplication.shared
         NSApplication.shared.setActivationPolicy(.accessory)
 
         do {
-            let rep = try render(surface)
+            let rep = try render(surface, at: instant)
             try write(rep, to: outputURL)
-            debugLog("koffee-render: wrote \(surface.rawValue) to \(outputURL.path)")
+            debugLog("koffee-render: wrote \(surface.rawValue) at \(instant) to \(outputURL.path)")
             return 0
         } catch {
             warn("\(name) failed: \(error)")
@@ -114,8 +171,24 @@ enum RenderHarness {
     private static let scale: CGFloat = 2
     private static let size = NSSize(width: 1000, height: 720)
 
+    /// Draws a surface at the default instant.
     @MainActor
     static func render(_ surface: Surface) throws -> NSBitmapImageRep {
+        try render(surface, at: defaultInstant)
+    }
+
+    /// Draws a surface with the clock frozen at `instant`, and restores what it found.
+    ///
+    /// The freeze is what makes two renders comparable: every "when is now" read in the app state and
+    /// the views goes through `DateHelper`, so with the instant pinned the picture depends on the
+    /// fixture and the instant and on nothing else — not on how many seconds apart the two draws were,
+    /// and not on which side of a 30-minute sample the second hand was on.
+    @MainActor
+    static func render(_ surface: Surface, at instant: Date) throws -> NSBitmapImageRep {
+        let previous = DateHelper.pinnedNow
+        DateHelper.pinnedNow = instant
+        defer { DateHelper.pinnedNow = previous }
+
         switch surface {
         case .dashboard:
             let fixture = try Fixture.overBedtimeLimit()
@@ -245,7 +318,7 @@ enum RenderHarness {
             doses: [(hoursAfterWake: Double, mg: Double)],
             planDoseMg: Double?
         ) throws -> Fixture {
-            let day = DateHelper.calendar.startOfDay(for: Date())
+            let day = DateHelper.startOfDay()
             let wakeTime = DateHelper.calendar.date(byAdding: .hour, value: 7, to: day)!
             let sleepTime = DateHelper.calendar.date(byAdding: .hour, value: 23, to: day)!
 
