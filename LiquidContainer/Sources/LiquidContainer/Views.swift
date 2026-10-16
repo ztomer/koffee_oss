@@ -23,10 +23,15 @@ public struct LiquidContainerView<Content: View>: View {
     }
 
     public var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0/30.0, paused: false)) { _ in
+        TimelineView(.animation(minimumInterval: 1.0/30.0, paused: !configuration.animates)) { _ in
             Canvas { context, size in
                 let deltaTime: Double = 1.0 / 30.0
-                physicsEngine.step(deltaTime: deltaTime)
+                // A render harness draws one instant. While animation is off the physics is not
+                // stepped at all, so however many times this canvas redraws, the liquid is the same
+                // picture — stepping it per draw is what made two renders of one view differ.
+                if configuration.animates {
+                    physicsEngine.step(deltaTime: deltaTime)
+                }
 
                 if Int(physicsEngine.internalTime * 30) % 90 == 0 {
                     let msg = String(format: "LiquidContainerView: time=%.1f accelX=%.3f angle=%.3f",

@@ -284,6 +284,12 @@ private func setupMainMenu() {
     NSApplication.shared.mainMenu = mainMenu
 }
 
+// A render draws one surface and exits; nothing below runs for it (G4). It is placed before the
+// application object is used, so a render never builds the menu bar, the window or the menu item.
+if RenderHarness.isRendering {
+    exit(RenderHarness.run())
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

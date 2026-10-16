@@ -24,14 +24,21 @@ final class DatabaseManager {
         return dir.appendingPathComponent("koffee.sqlite")
     }()
 
-    /// A test process gets a scratch file of its own, never the user's.
+    /// Whether this process must not touch the user's database. A test host is one of these, and so
+    /// is a render: `KOFFEE_RENDER` exists to draw a surface from its own in-memory fixture, and
+    /// reaching the user's file from either process would be the bug this guard is here to stop.
+    static var usesScratchDatabase: Bool {
+        isTestingProcess || RenderHarness.isRendering
+    }
+
+    /// A process that must not touch the user's file gets a scratch database of its own.
     ///
     /// The suite reaches this singleton (through `AppState+DailyPlan`'s `dbWrite` and
     /// `BeverageManager`), and the gate runs the suite on every push — so while `dbURL` was the
     /// user's file, a push read and wrote the user's own database.
-    static let dbURL: URL = isTestingProcess
+    static let dbURL: URL = usesScratchDatabase
         ? FileManager.default.temporaryDirectory
-            .appendingPathComponent("koffee-tests-\(ProcessInfo.processInfo.processIdentifier).sqlite")
+            .appendingPathComponent("koffee-scratch-\(ProcessInfo.processInfo.processIdentifier).sqlite")
         : appSupportDatabaseURL
 
     private init() {}

@@ -216,6 +216,13 @@ public struct LiquidContainerConfiguration: Sendable {
     public var maxFillRatio: CGFloat
     public var layerConfiguration: LiquidLayerConfiguration
 
+    /// Whether the container animates.
+    ///
+    /// `LiquidContainerView` drives itself from `TimelineView(.animation)` and steps the physics on
+    /// every frame, so two renders of one view differ in the liquid. A render harness draws one
+    /// instant and turns this off.
+    public var animates: Bool = true
+
     public static let coffee = LiquidContainerConfiguration(
         liquidColor: Color(red: 0.85, green: 0.70, blue: 0.50),
         liquidColorDark: Color(red: 0.12, green: 0.05, blue: 0.02),
@@ -316,8 +323,21 @@ public struct LiquidContainerConfiguration: Sendable {
 
 public struct BubbleGenerator {
     public static func generate(count: Int, width: CGFloat, height: CGFloat) -> [BubbleState] {
+        var random = SystemRandomNumberGenerator()
+        return generate(count: count, width: width, height: height, using: &random)
+    }
+
+    /// Lays the bubbles out from `generator` rather than from the system's entropy, so a caller that
+    /// needs the same picture twice — the render harness's fixture — can reproduce it. The layout was
+    /// the one unseeded source in a dashboard render; everything else derives from the fixture.
+    public static func generate<G: RandomNumberGenerator>(
+        count: Int,
+        width: CGFloat,
+        height: CGFloat,
+        using generator: inout G
+    ) -> [BubbleState] {
         (0..<count).map { i in
-            let seed = Int.random(in: 0...10000)
+            let seed = Int.random(in: 0...10000, using: &generator)
             return BubbleState(
                 x: CGFloat(seed % Int(width - 40)) + 20,
                 baseY: CGFloat((seed / 100) % Int(height * 0.8)) + 20,

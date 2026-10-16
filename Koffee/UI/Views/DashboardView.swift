@@ -8,7 +8,7 @@ struct DashboardView: View {
     let window: NSWindow?
 
     @State private var caffeineAtBedtime: Double = 0
-    @State private var bubbleStates: [BubbleState] = BubbleGenerator.generate(count: 30, width: 400, height: 300)
+    @State private var bubbleStates: [BubbleState] = dashboardBubbles(count: 30, seed: RenderHarness.bubbleSeedWhenRendering)
     @State private var lastDoseCount: Int = 0
     @State private var lastBubbleBucket: Int = -1
     @State private var lastWindowPos: CGPoint?
@@ -33,7 +33,11 @@ var pendingCaffeine: Double {
     }
 
     var liquidConfiguration: LiquidContainerConfiguration {
-        .coffee
+        // A render draws one instant, so the liquid's timeline is paused for it: otherwise
+        // `TimelineView(.animation)` steps the physics at 30fps and no two renders agree.
+        var configuration = LiquidContainerConfiguration.coffee
+        configuration.animates = !RenderHarness.isRendering
+        return configuration
     }
 
     var activeStimulantLoad: Double {
@@ -100,6 +104,9 @@ var pendingCaffeine: Double {
             rescaleBubbles(force: true)
         }
         .task {
+            // A render is one instant of the dashboard, so the ambient slosh — a random nudge every
+            // two seconds — is left out of it. Everything a screenshot shows is then the fixture's.
+            guard !RenderHarness.isRendering else { return }
             // Ambient physics: tiny continuous waves. A task, not a repeating Timer: it runs on the
             // main actor that owns this state, and ends when the view goes away. The Timer it
             // replaces mutated main-actor state from a Sendable closure, and a new one was started
@@ -289,7 +296,7 @@ var pendingCaffeine: Double {
         let bucket = Int((min(max(fillRatio, 0), 1) * 10).rounded())
         guard force || bucket != lastBubbleBucket else { return }
         lastBubbleBucket = bucket
-        bubbleStates = BubbleGenerator.generate(count: bubbleCount(forFillRatio: fillRatio), width: 400, height: 300)
+        bubbleStates = dashboardBubbles(count: bubbleCount(forFillRatio: fillRatio), seed: RenderHarness.bubbleSeedWhenRendering)
     }
 }
 
@@ -315,6 +322,23 @@ func oracleLine(bedtimeMg: Double, limit: Double, thresholdName: String) -> Stri
 func bubbleCount(forFillRatio ratio: Double) -> Int {
     let clamped = min(max(ratio, 0), 1)
     return 20 + Int((clamped * 20).rounded())
+}
+
+/// The dashboard's bubbles.
+///
+/// While `KOFFEE_RENDER` is set they are drawn from a fixed seed, because `BubbleGenerator`'s layout
+/// is the one thing in a dashboard render that comes from the system's entropy — two screenshots of
+/// the same surface would otherwise differ only in where the bubbles sit. The app is unchanged: it
+/// draws from the system, as before.
+///
+/// The seed is a parameter rather than a read of the environment so the seeded layout can be tested
+/// for what it claims (the same seed twice is the same layout) in a process that is not rendering.
+func dashboardBubbles(count: Int, seed: UInt64?) -> [BubbleState] {
+    guard let seed else {
+        return BubbleGenerator.generate(count: count, width: 400, height: 300)
+    }
+    var generator = SeededRandomNumberGenerator(seed: seed)
+    return BubbleGenerator.generate(count: count, width: 400, height: 300, using: &generator)
 }
 
 // MARK: - Stat Widget
