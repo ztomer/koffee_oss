@@ -34,8 +34,9 @@ every launch, and because the test host is the app, a push did it too —
 `tools/gate.sh --full` was green over it throughout. Both halves are closed in **Phase 0c**
 (L1, L2, `5ec4301`). The harness that went looking is built now (**G4**, `2afc200`), and its first
 render found a third thing (**L3**, Phase 0d): the chart silently dropped doses over 150 mg — fixed at
-`4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets) and **L5**
-("Peak" is the first dose's peak, not the curve's).
+`4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets — open, needs a ruling
+on the dose set) and **L5** ("Peak" named the first dose's peak, not the curve's — fixed at
+`1683c6f`).
 
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
@@ -417,14 +418,14 @@ is the harness's precondition, not a preference: a render harness runs in this s
 ## Phase 0d — found by the first render (2026-10-16)
 
 The harness's first screenshot (G4) put two bedtime numbers on one screen. Three defects sit behind
-that disagreement — one fixed, two filed from the same render.
+that disagreement — two fixed, one still open.
 
 **L3. The chart drops every dose over 150 mg. — DONE (`4fb39d9`).**
 `generateUnifiedCurvePoints` (`Koffee/Data/Models.swift:171`) ran
 `doses.filter { _, mg in mg <= 150 }`, directly under a comment that promises "Chart what the caller
 passed - no wall-clock filtering here". No wall-clock filtering did happen — but a magnitude filter
 did, so every dose above 150 mg was missing from the curve **and from the three stats the chart reads
-off that curve**: `Current Caffeine`, `At Bedtime` and `Peak` (`UnifiedChartView.swift:188-196`).
+off that curve**: `Current Caffeine`, `At Bedtime` and `Peak` in `UnifiedChartView`'s status row.
 
 Evidence, from one render of the `dashboard` surface before the fix: the fixture logs 200 mg at 15:00
 and plans 95 mg at wake. The app's own trace printed `caffeine for calc: 1/2`; the curve's stat row
@@ -461,14 +462,35 @@ Which set is correct is a product ruling: the app draws the plan item as a dose 
 take, and "Put the pot down" is advice about the rest of the day — both argue the funnel should
 include it — but a pending item is not yet in you. Needs the owner's ruling, not a guess.
 
-**L5. "Peak" is the first dose's peak, not the curve's. — OPEN.**
-`UnifiedChartView.swift:195` computes `peakTime = doses.first?.time + 45min`, so the label names when
+**L5. "Peak" is the first dose's peak, not the curve's. — DONE (`1683c6f`).**
+`UnifiedChartView.swift:195` computed `peakTime = doses.first?.time + 45min`, so the label named when
 the *earliest* dose peaks — approximately right only while the first dose of the day dominates. The
-model has no absorption term (`calculateCaffeineLevel` is pure decay, so the true curve peaks at the
-dose instant), which makes the +45 min a fixed allowance on top. L3 is what made this visible: before
-it the drawn curve's maximum was at 07:00 and the label said 07:45; after it the curve's maximum is at
-15:00 and the label still says **"Peak 07:45"**, printed beside it. Fix is the max of the curve, not
-`first + 45min`.
+other two stats on that row (`Current Caffeine`, `At Bedtime`) are read off `chartData`; the peak was
+the only one read off the input doses with a hand-rolled offset. L3 is what made it visible: before it
+the drawn curve's maximum was at 07:00 and the label said 07:45; after it the curve's maximum is at
+15:00 and the label still said **"Peak 07:45"**, printed beside it.
+
+Red first, `ChartPeakLabelTests`, which asserts the view's own value rather than scanning the source
+(the view is constructible from the test target): with the old body the row named 07:45 where the
+curve peaks at 15:00, and 09:45 where a single 09:00 dose peaks. Red was re-confirmed after the class
+needed `@MainActor` (D-0016 — fixed, not silenced). `peakInstant` is now the curve's high point, and
+nil rather than `Date()` when there are no doses. Measured after, on the `dashboard` render:
+**"Peak At 15:00"** sits under the spike that used to be labelled "Peak 07:45"; the other two stat
+values are unchanged.
+
+Two things this deliberately did not settle:
+
+- The 45-minute absorption allowance is **gone from the label** rather than moved onto a different
+  dose. The model has no absorption term for it to describe — `calculateCaffeineLevel` is pure decay,
+  so the curve the label annotates peaks at the dose instant — and a derived value cannot drift from
+  the picture it sits under. Give the model absorption (`K1`-style, a phase-2 question) and the label
+  follows it automatically. Two leftovers now carry the concept instead: `calculateOptimalFocusWindow`
+  has its own **+1h** peak allowance (for the first dose's window, so not L5), and
+  `NootropicCompound.peakTimeMinutes` (= 45) is referenced by nothing, and already was before this
+  change — a dead descriptor of the compound era, like `safeLimitMg` in the same enum.
+- `isPeakPast` reads `Date()` directly, so the "Peak" / "Peak At" choice is wall-clock dependent at the
+  peak instant. That is the same class as `Current Caffeine` reading a curve sample against `Date()`,
+  and both are what the clock seam (named in G4's limits, above) is for.
 
 ## Phase 2 — product (only after Phase 0b)
 
