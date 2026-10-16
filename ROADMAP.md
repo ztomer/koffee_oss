@@ -29,6 +29,11 @@ must go red once before it is trusted green.
 gate has stayed green since, through all five Phase 0b items — K1 (`2542390`),
 K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
 
+**Found and fixed 2026-10-16:** the app's launch path deleted and recreated the user's profile on
+every launch, and because the test host is the app, a push did it too —
+`tools/gate.sh --full` was green over it throughout. Both halves are closed in **Phase 0c**
+(L1, L2, `5ec4301`). The screenshot harness that went looking and found it is still open (**G4**).
+
 This header used to say the opposite of the Phase 0 section directly beneath it:
 it claimed `main` was ahead of `origin/main` (it is not — that was written before
 the push landed) and that goh v0.27.0 "turned `tools/gate.sh --full` red",
@@ -337,6 +342,53 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   and would let a comment quote the call it is discussing for free; here such a comment goes red
   instead — annoying, and the safe direction to fail in, because noticing a print that came back
   is the entire job.
+
+- **G4. The recurring user-POV screenshot rule has no harness — OPEN.**
+  "User-POV screenshot at native pixels for every visual change" is a standing constraint with
+  nothing behind it: the repo has no render path and no render target, so the only way to take one
+  today is to launch the app on top of the owner's live data. The harness is one artifact at a time,
+  headless, deterministic and to a file: `KOFFEE_RENDER=<surface>` renders one surface and exits,
+  the surface named from a catalog, the fixture built through `TestDatabase` (in-memory). L2
+  (`5ec4301`) removed the precondition that blocked it — the process it runs in no longer opens the
+  user's database — so what remains is the harness itself.
+
+## Phase 0c — the launch path and the user's data (found 2026-10-16)
+
+Found while probing a headless render harness, which needs the test process to stop touching the
+live database. One cause behind both halves: `Koffee/App/main.swift`'s
+`applicationDidFinishLaunching` runs on **every launch**, and it is also the **test host**
+(`project.yml` sets `TEST_HOST` to `Koffee.app`), so whatever it does at launch happens on every
+`xcodebuild test` too — including the one the push gate runs.
+
+**L1. Every launch deletes and recreates the user's profile. — DONE (`5ec4301`).**
+`main.swift` calls `UserProfileModel.deleteAll(db)` and then writes a fresh
+`UserProfileModel(wakeTime: today 07:00, sleepTime: today 23:00, …)`, so wake time, sleep time,
+sensitivity, metabolism, weight and stack compounds are **reset to defaults on every launch**.
+Measured, not read: a single existing test run
+(`-only-testing:KoffeeTests/AppStateTests/testAddDoseThroughAppState`) moved a live profile's
+`wake_time` from `2026-10-15 11:00` to `2026-10-16 11:00` and `updated_at` to the second the run
+started. Note the shape: the dates are *today's* defaults, which is the tell that this is the daily
+roll, not a one-off reset.
+
+The delete is load-bearing for that roll — the profile stores wake/sleep as absolute datetimes and
+`refreshDailyPlan` schedules the first item AT `wakeTime`, so the row's dates have to be today's —
+which is why the fix is a ROLL and not a removal: transpose wake/sleep onto today and keep every
+setting the user chose. `HistoryView` already did exactly this roll with
+`transposedWallTime(from:onto:calendar:)`, which is now shared rather than copied. The shape was
+ruled: **roll the stored dates** (the alternative, storing the times as wall-clock times and
+deriving today's dates at read time, is cleaner but reaches plan scheduling, the chart, history and
+notifications, and was not taken for a defect this size). The row keeps its id, its settings and its
+`updated_at`; only the two dates move, and `ProfileDayRoll.store(in:day:)` is the step `main.swift`
+calls — the same read, roll and save a test drives against a real database.
+
+**L2. The gate's test run reads and writes the live database. — DONE (`5ec4301`).**
+Because the host is the app, `DatabaseManager.shared.open()` opens the real file, and the suite
+reaches it through `AppState+DailyPlan`'s `dbWrite` (the stale-plan-item delete) and
+`BeverageManager` — so a push can write to the user's database, and every test that calls
+`refreshDailyPlan()` depends on the live file being open rather than on the store it was handed.
+Fix at the one singleton: under `XCTestConfigurationFilePath`, `DatabaseManager.dbURL` is a
+per-process scratch file, so the suite gets its own store and the user's file is never opened. This
+is the harness's precondition, not a preference: a render harness runs in this same process.
 
 ## Phase 2 — product (only after Phase 0b)
 
