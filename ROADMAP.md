@@ -482,16 +482,29 @@ the same 200 mg dose below 150 and the two agree". The post-fix render refutes i
 **"At Bedtime 76mg"** against the banner's 65mg, and 76 = 65 + 10, the pending plan item. The filter
 was one cause; the dose set is another.
 
-**L4. Two bedtime numbers, two dose sets. — OPEN.**
-`UnifiedChartView`'s stat row reads the curve, which is built from `compositeDoses` — logged doses
-*plus pending plan items* — while `projectBedtimeCaffeine` is called with `appState.todayDoses`,
-logged only. Measured on the post-L3 `dashboard` render: stat row **76mg**, banner **65mg**, the 10 mg
-difference being the 95 mg plan item planted at wake. The funnel's own comment says every surface
-showing "caffeine at bedtime" must call it and never a local heuristic; the chart's stat row still
-does not, so the fix is either the chart calling the funnel or the funnel taking the composite set.
-Which set is correct is a product ruling: the app draws the plan item as a dose it expects you to
-take, and "Put the pot down" is advice about the rest of the day — both argue the funnel should
-include it — but a pending item is not yet in you. Needs the owner's ruling, not a guess.
+**L4. Two bedtime numbers, two dose sets. — DONE (`TBD`).**
+Owner ruling (2026-10-17): the dose set is **planned + logged**, deduplicating
+the case where the planned dose was already logged. The dedup is structural: a
+taken plan-dose is logged with the plan item's own id
+(`addWithId(id: item.id)`), so dose id == plan item id is one cup, not two.
+New pure derivation `effectiveDoseSet(loggedDoses:pendingPlanItems:)` in
+`Koffee/Data/DoseSet.swift` is the one set every surface reads:
+- `AppState.updateCaffeineLevels` (tank + its bedtime field)
+- `DashboardView.updateCaffeineLevel` (banner)
+- `DashboardView.compositeDoses` (the curve)
+- `DashboardView.activeStimulantLoad`
+- `projectedBedtimeCaffeine(byAdding:)` (beverage preview)
+- `CaffeineTimelineChart.bedtimeCaffeineLevel` (stat row — new exposed value;
+  the row now calls the funnel, not a curve read, so banner and stat row agree)
+
+Bug found and fixed along the way: `DoseModel.didInsert` overwrote the custom
+id with the rowID, breaking the structural link the dedup relies on. Fixed to
+only overwrite auto-generated UUIDs. Also `DoseRepository.add`/`addWithId`/
+`delete` now call `reload()` so read-after-write is synchronous (GRDB's
+`.immediate` scheduler is async for subsequent observations).
+
+Proof: `EffectiveDoseSetTests` (7 tests) — watched red first (compile error:
+helper and chart property didn't exist); full suite 226/226 green.
 
 **A third surface turned up with the clock pin (G5).** `AppState.currentCaffeineLevel` — the tank, and
 the level the dashboard's ring draws — is computed from `self.doses` filtered to today, logged only, so

@@ -39,7 +39,12 @@ struct DoseModel: FetchableRecord, PersistableRecord, Codable, Identifiable, Equ
     }
 
     mutating func didInsert(_ inserted: InsertionSuccess) {
-        id = inserted.rowID.description
+        // Only overwrite auto-generated UUIDs. Custom ids (e.g., plan item ids
+        // from addWithId) must survive — they are the structural link between a
+        // logged plan-dose and its plan item (L4 dedup).
+        if UUID(uuidString: id) != nil {
+            id = inserted.rowID.description
+        }
     }
 
     init(id: String = UUID().uuidString, beverageId: String? = nil, timestamp: Date, caffeineMg: Double,

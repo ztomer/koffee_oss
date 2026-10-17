@@ -110,12 +110,18 @@ func pendingPlanItemsByCompound(_ compoundUuid: String) -> [DailyPlanItemModel] 
         return tied.max { (lastSeen[$0] ?? .distantPast) < (lastSeen[$1] ?? .distantPast) }
     }
 
-    /// Bedtime projection for today doses plus one hypothetical beverage dose
-    /// at `at`. Uses the single decay funnel `projectBedtimeCaffeine`.
+    /// Bedtime projection for the ruled dose set (L4) plus one hypothetical beverage
+    /// dose at `at`. Uses the single decay funnel `projectBedtimeCaffeine`.
     func projectedBedtimeCaffeine(byAdding beverage: BeverageModel, at: Date = DateHelper.now) -> Double {
         let now = DateHelper.now
-        let todayDoses = dosesForDate(now).map { ($0.timestamp, $0.caffeineMg) }
-        var combined = todayDoses
+        let ruledSet = effectiveDoseSet(
+            loggedDoses: dosesForDate(now),
+            pendingPlanItems: pendingPlanItemsToday
+        ).compactMap { dose -> (Date, Double)? in
+            guard let time = dose.time else { return nil }
+            return (time, dose.amount)
+        }
+        var combined = ruledSet
         combined.append((at, Double(beverage.caffeineMg)))
         let metabolism = MetabolismRate(swiftDataValue: profile?.metabolismRate ?? "") ?? .medium
         let wakeTime = profile?.wakeTime ?? DateHelper.date(bySettingHour: 7, minute: 0, second: 0, of: now)!

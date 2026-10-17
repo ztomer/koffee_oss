@@ -30,6 +30,15 @@ final class DoseRepository: DoseRepositoryProtocol {
             .store(in: &cancellables)
     }
 
+    /// Re-run the observed query so published state reflects this write NOW.
+    /// GRDB 7's `.immediate` scheduler delivers subsequent observations via
+    /// DispatchQueue.main.async, so read-after-write must not rely on it.
+    private func reload() {
+        doses = (try? db.read { db in
+            try DoseModel.order(DoseModel.Columns.timestamp).fetchAll(db)
+        }) ?? doses
+    }
+
     func add(beverageId: String? = nil, timestamp: Date, caffeineMg: Double, beverageName: String? = nil) throws {
         guard caffeineMg >= 0 else {
             throw RepositoryError.validationFailed("caffeineMg must be non-negative, got \(caffeineMg)")
@@ -42,6 +51,7 @@ final class DoseRepository: DoseRepositoryProtocol {
         try db.write { db in
             try dose.insert(db)
         }
+        reload()
     }
 
     func addWithId(id: String, beverageId: String? = nil, timestamp: Date, caffeineMg: Double, beverageName: String? = nil) throws {
@@ -56,6 +66,7 @@ final class DoseRepository: DoseRepositoryProtocol {
         try db.write { db in
             try dose.insert(db)
         }
+        reload()
     }
 
     func delete(_ dose: DoseModel) throws {
@@ -65,6 +76,7 @@ final class DoseRepository: DoseRepositoryProtocol {
                 throw RepositoryError.notFound("Dose \(dose.id)")
             }
         }
+        reload()
     }
 
     func dosesForDate(_ date: Date) throws -> [DoseModel] {

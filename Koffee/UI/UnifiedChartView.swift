@@ -2,8 +2,9 @@ import SwiftUI
 import Charts
 
 /// Caffeine timeline chart: current level, bedtime projection, safe-limit
-/// rule and optimal focus window. All values derive from logged caffeine
-/// doses plus today's pending caffeine plan items.
+/// rule and optimal focus window. All values derive from THE ruled dose set
+/// (L4): logged caffeine doses plus today's pending caffeine plan items,
+/// deduplicated when the planned dose was already logged (`effectiveDoseSet`).
 struct CaffeineTimelineChart: View {
     let doses: [Dose]
     let wakeTime: Date
@@ -208,9 +209,25 @@ struct CaffeineTimelineChart: View {
         return currentData?.mg ?? 0
     }
 
+    /// The row's "At Bedtime" value: THE funnel at this day's bedtime, not the curve.
+    ///
+    /// L4 (owner-ruled): the row used to read the curve's value at `sleepTime`, which is
+    /// `projectBedtimeCaffeine` with its day-boundary rule stripped out — for a plan item landed
+    /// exactly at wake the two differ (the curve counts it decaying today; the funnel moves it to
+    /// the coming day), and the dashboard then carried two bedtime numbers. One bedtime number:
+    /// the row calls the funnel, the banner calls the funnel, the tank calls the funnel.
+    /// Exposed rather than private so a test can assert the value, like `currentCaffeine`.
+    var bedtimeCaffeineLevel: Double {
+        projectBedtimeCaffeine(
+            doses: doseTuples,
+            wakeTime: wakeTime,
+            sleepTime: sleepTime,
+            metabolism: metabolism
+        )
+    }
+
     private var currentStatusView: some View {
-        let bedtimeData = chartData.last { $0.time <= sleepTime } ?? chartData.last
-        let bedtimeCaffeine = bedtimeData?.mg ?? 0
+        let bedtimeCaffeine = bedtimeCaffeineLevel
 
         let peakTime = peakInstant ?? DateHelper.now
         let isPeakPast = peakTime < DateHelper.now

@@ -105,15 +105,34 @@ final class AppState: ObservableObject {
     // MARK: - PK Levels
     // Update PK-based caffeine levels
     func updateCaffeineLevels() {
-        guard profile != nil else { return }
+        // Read the repo's live row, not the cached `profile` — the Combine sink
+        // that updates `profile` is async, so a write-then-read in the same
+        // turn (a test, a launch) would see nil and skip the whole update.
+        guard let profile = profileRepo.profile else { return }
 
         let now = DateHelper.now
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: now)
 
-        // Only use today's doses
-        let todayDoses = self.doses.filter { $0.timestamp >= todayStart }
-        let doses = todayDoses.map { ($0.timestamp, $0.caffeineMg) }
+        // Only use today's doses — through the ruled dose set (L4): planned + logged,
+        // deduplicated. A pending plan item whose cup was already logged counts once
+        // (its dose), and a pending cup ahead of now contributes nothing until its
+        // scheduled time, because the decay core skips doses beyond the instant asked.
+        // Read the repo's live rows, not the cached `doses` — the Combine sink is async.
+        let todayDoses = doseRepo.doses.filter { $0.timestamp >= todayStart }
+        let ruledSet = effectiveDoseSet(
+            loggedDoses: todayDoses,
+            pendingPlanItems: planRepo.items.filter { item in
+                item.compoundUuid == "caffeine" &&
+                item.status == .pending &&
+                item.scheduledTime >= todayStart &&
+                item.scheduledTime < todayStart.addingTimeInterval(86400)
+            }
+        )
+        let doses = ruledSet.compactMap { dose -> (Date, Double)? in
+            guard let time = dose.time else { return nil }
+            return (time, dose.amount)
+        }
 
         debugLog("updateCaffeineLevels: \(doses.count) doses today")
         for (t, m) in doses {
@@ -121,20 +140,18 @@ final class AppState: ObservableObject {
         }
 
         // Current active caffeine level (same decay core as the chart)
-        let metabolism = MetabolismRate(swiftDataValue: profile?.metabolismRate ?? "") ?? .medium
+        let metabolism = MetabolismRate(swiftDataValue: profile.metabolismRate) ?? .medium
         currentCaffeineLevel = calculateCaffeineLevel(doses: doses, at: now, metabolism: metabolism)
         debugLog("  currentCaffeineLevel = \(currentCaffeineLevel)")
 
         // Caffeine at bedtime (shared funnel with dashboard + history)
-        if let profile = profile {
-            caffeineAtBedtime = projectBedtimeCaffeine(
-                doses: doses,
-                wakeTime: profile.wakeTime,
-                sleepTime: profile.sleepTime,
-                metabolism: metabolism
-            )
-            debugLog("  caffeineAtBedtime = \(caffeineAtBedtime)")
-        }
+        caffeineAtBedtime = projectBedtimeCaffeine(
+            doses: doses,
+            wakeTime: profile.wakeTime,
+            sleepTime: profile.sleepTime,
+            metabolism: metabolism
+        )
+        debugLog("  caffeineAtBedtime = \(caffeineAtBedtime)")
 
         // Check for tolerance build-up (caffeine cycling)
         toleranceAlert = calculateToleranceAlert()

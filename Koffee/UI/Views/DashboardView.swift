@@ -45,33 +45,24 @@ var pendingCaffeine: Double {
 
         var load: Double = 0
         let todayDoses = appState.dosesForDate(now)
-        load += todayDoses.reduce(0) { $0 + $1.caffeineMg }
 
-        let pendingCaffeine = appState.pendingPlanItemsTodayByCompound("caffeine")
-        load += pendingCaffeine.reduce(0) { $0 + $1.doseMg }
+        // The ruled dose set (L4): a pending plan item whose cup was already logged
+        // (dose id == plan item id) is one cup, not two.
+        load += effectiveDoseSet(
+            loggedDoses: todayDoses,
+            pendingPlanItems: appState.pendingPlanItemsTodayByCompound("caffeine")
+        ).reduce(0) { $0 + $1.amount }
 
         return load
     }
 
     private var compositeDoses: [Dose] {
-        // Use AppState method
-        let todayDoses = appState.dosesForDate(DateHelper.now)
-
-        let actuals = todayDoses.map { dose in
-            Dose(time: dose.timestamp, amount: dose.caffeineMg, compound: .caffeine, isPlanItem: false)
-        }
-
-// Get today's pending plan items
-        let planDoses = appState.pendingPlanItemsToday
-
-        let planDoseData = planDoses.map { item in
-            Dose(time: item.scheduledTime, amount: item.doseMg, compound: .caffeine, isPlanItem: true)
-        }
-
-        var result = actuals
-        result.append(contentsOf: planDoseData)
-
-        return result.sorted { ($0.time ?? Date.distantPast) < ($1.time ?? Date.distantPast) }
+        // The ruled dose set (L4) applies to the curve too: planned + logged,
+        // deduplicated when the planned dose was already logged.
+        effectiveDoseSet(
+            loggedDoses: appState.dosesForDate(DateHelper.now),
+            pendingPlanItems: appState.pendingPlanItemsToday
+        )
     }
 
     var body: some View {
@@ -285,11 +276,20 @@ var pendingCaffeine: Double {
     }
 
     private func updateCaffeineLevel() {
-        let doses = appState.todayDoses.map { ($0.timestamp, $0.caffeineMg) }
+        // The banner passes the funnel the ruled dose set (L4): planned + logged,
+        // deduplicated — the funnel takes the composite set, so this number and the
+        // chart's stat row are the same projection of the same day.
+        let ruledSet = effectiveDoseSet(
+            loggedDoses: appState.todayDoses,
+            pendingPlanItems: appState.pendingPlanItemsToday
+        ).compactMap { dose -> (Date, Double)? in
+            guard let time = dose.time else { return nil }
+            return (time, dose.amount)
+        }
         let wakeTime = appState.profile?.wakeTime ?? DateHelper.now
         let sleepTime = appState.profile?.sleepTime ?? DateHelper.now
         let metabolism = MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
-        caffeineAtBedtime = projectBedtimeCaffeine(doses: doses, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
+        caffeineAtBedtime = projectBedtimeCaffeine(doses: ruledSet, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
     }
 
     private func rescaleBubbles(force: Bool = false) {
