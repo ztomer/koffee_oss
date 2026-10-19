@@ -8,6 +8,7 @@ struct DashboardView: View {
     let window: NSWindow?
 
     @State private var caffeineAtBedtime: Double = 0
+    @State private var caffeineFreeAt: Date?
     @State private var bubbleStates: [BubbleState] = dashboardBubbles(count: 30, seed: RenderHarness.bubbleSeedWhenRendering)
     @State private var lastDoseCount: Int = 0
     @State private var lastBubbleBucket: Int = -1
@@ -185,6 +186,15 @@ var pendingCaffeine: Double {
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
+
+                        // P1: the forecast. It rides on the ruled dose set the chart draws
+                        // (L4) and on the same decay model, so it is the curve's own answer
+                        // rather than a second caffeine number.
+                        if let forecast = caffeineFreeLine(freeAt: caffeineFreeAt, now: DateHelper.now) {
+                            Text(forecast)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()
@@ -290,6 +300,9 @@ var pendingCaffeine: Double {
         let sleepTime = appState.profile?.sleepTime ?? DateHelper.now
         let metabolism = MetabolismRate(swiftDataValue: appState.profile?.metabolismRate ?? "") ?? .medium
         caffeineAtBedtime = projectBedtimeCaffeine(doses: ruledSet, wakeTime: wakeTime, sleepTime: sleepTime, metabolism: metabolism)
+        // P1: the same ruled set, through the same decay model -- so the forecast cannot
+        // disagree with the curve the reader is looking at.
+        caffeineFreeAt = CaffeinePK.caffeineFreeAt(doses: ruledSet, metabolism: metabolism)
     }
 
     private func rescaleBubbles(force: Bool = false) {
@@ -315,6 +328,59 @@ func oracleLine(bedtimeMg: Double, limit: Double, thresholdName: String) -> Stri
         // pass as a finding.
         return "Put the pot down — \(mg)mg at bedtime, over \(thresholdName)."
     }
+}
+
+/// The forecast line under the oracle sentence: when the day's modelled caffeine falls
+/// under the threshold the app calls "none" (P1).
+///
+/// The line NAMES the threshold, because "caffeine-free" is only ever true of a line the
+/// app chose — 1 mg, its own reporting resolution. A sentence that said "caffeine-free"
+/// with no line would be a claim the reader has no way to check, which is the shape K4
+/// found and closed.
+///
+/// The day is named too ("today", "tomorrow", or the date): a clock time without its day
+/// is a forecast the reader has to guess about, and guessing is how "06:09" becomes
+/// "six in the morning".
+///
+/// - Returns: `nil` when there is nothing to forecast (no doses) — a line with no fact
+///   behind it is worse than no line.
+func caffeineFreeLine(
+    freeAt: Date?,
+    now: Date,
+    calendar: Calendar = DateHelper.calendar
+) -> String? {
+    guard let freeAt else { return nil }
+    let threshold = Int(CaffeineConstants.caffeineFreeThresholdMg)
+    guard freeAt > now else {
+        return "Caffeine-free now (under \(threshold)mg)."
+    }
+    let time = clockTime(freeAt, calendar: calendar)
+    let day = dayLabel(freeAt, now: now, calendar: calendar)
+    return "Caffeine-free at \(time) \(day) (under \(threshold)mg)."
+}
+
+/// "HH:mm" in the reader's own zone — the app's clock format (the chart's stat row uses it).
+private func clockTime(_ date: Date, calendar: Calendar) -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "HH:mm"
+    formatter.timeZone = calendar.timeZone
+    return formatter.string(from: date)
+}
+
+/// How the forecast names the day the instant falls on.
+private func dayLabel(_ date: Date, now: Date, calendar: Calendar) -> String {
+    if calendar.isDate(date, inSameDayAs: now) {
+        return "today"
+    }
+    if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)),
+       calendar.isDate(date, inSameDayAs: tomorrow) {
+        return "tomorrow"
+    }
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US")
+    formatter.dateFormat = "EEE d MMM"
+    formatter.timeZone = calendar.timeZone
+    return formatter.string(from: date)
 }
 
 /// Idle bubble count scales with fill ratio using the existing generator.

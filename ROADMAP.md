@@ -571,7 +571,27 @@ every top-rated caffeine app has a caffeine-free-at forecast, a bedtime-level
 forecast and quick-log. Size **M** each.
 
 - **P1. "Caffeine-free at" and bedtime forecast** on the dashboard, computed
-  through `projectBedtimeCaffeine` (the one funnel) with K3's per-dose cutoff.
+  through `projectBedtimeCaffeine` (the one funnel) with K3's per-dose cutoff — **DONE.**
+  The bedtime forecast was already on the dashboard (the HUD's `BEDTIME` widget and the
+  oracle sentence, both the funnel's number); the missing half was the caffeine-free
+  time, and it is now a third line of the oracle card.
+
+  `CaffeinePK.caffeineFreeAt` SOLVES for the instant the day's modelled caffeine reaches
+  the threshold the app reports as nothing — **1 mg, the app's own reporting resolution**
+  (the dashboard prints whole milligrams). The line the sentence names is the line the
+  derivation uses, so "caffeine-free" is not a claim the reader has no way to check: the
+  copy says "under 1mg". The level is read from `calculateCaffeineLevel`, so the forecast
+  and the drawn curve are one decay and one dose set (L4) — a forecast that disagreed with
+  the chart would be the two-numbers-one-screen defect again.
+
+  The DAY is named with the time ("today", "tomorrow", or the date): a clock time without
+  its day is a forecast the reader has to guess about. The instant is the crossing, so a
+  reader already under the line is told "now" rather than a time in the past.
+
+  Red first, and calibrated in both directions: dropping the metabolism multiplier and
+  adding an hour of slack each turned the suite red by name (the level at the named
+  instant read 0.87 mg, not 1 mg). 236/236 green.
+
 - **P2. Quick-log from the menu bar / a widget** for the usual beverage
   (`usualBeverageId` exists).
 - **P3. Tolerance as a pharmacodynamic gain, not a clearance change** — only if

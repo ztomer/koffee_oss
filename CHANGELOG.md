@@ -26,3 +26,22 @@ What a user sees: nothing. What a push sees: a tree that ships an x86_64 slice i
 
 Re-check on your own setup: `tools/arch_gate.sh` prints the declared set and the architectures of
 the Release binary it built; `tools/arch_gate_test.sh` proves the check can still fail.
+
+**The dashboard forecasts when you are caffeine-free (P1).** The banner now carries a third line
+under its advice: "Caffeine-free at 06:16 Wed 21 Oct (under 1mg)."
+
+- The instant is solved from the day's modelled caffeine, read from the same decay model the
+  chart draws and over the same ruled dose set (planned + logged, deduplicated) — so the
+  forecast and the curve are one number, not two.
+- "Caffeine-free" is only ever true of a line the app chose, so the line is named: **1 mg is
+  the app's own reporting resolution** (the dashboard prints whole milligrams), and the
+  sentence says "under 1mg".
+- The day is named with the time ("today", "tomorrow", or the date), because a clock time
+  without its day is a forecast the reader has to guess about. A reader already under the
+  line is told "now", not a time in the past.
+
+What a user sees: one more line in the dashboard banner. What changed underneath: a solved
+derivation (`CaffeinePK.caffeineFreeAt`) and 10 tests that were red before they were green.
+
+Re-check on your own setup: open the dashboard after a coffee — the line names the instant the
+level reaches 1 mg, and the day it falls on.

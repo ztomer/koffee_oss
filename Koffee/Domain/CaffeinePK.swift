@@ -89,4 +89,48 @@ enum CaffeinePK {
         guard thresholdMg > 0, halfLifeHours > 0, doseMg > thresholdMg else { return 0 }
         return halfLifeHours * log2(doseMg / thresholdMg)
     }
+
+    // MARK: - The caffeine-free forecast
+
+    /// The instant the day's modelled caffeine falls to `thresholdMg` — P1's "caffeine-free at".
+    ///
+    /// Every dose decays at the same rate, so for any instant at or after the LAST dose the
+    /// level is ONE exponential: `C · 0.5^((t - last) / halfLife)`, where `C` is the level at
+    /// that last dose. The answer is therefore solved, not stepped:
+    ///
+    ///     t = last + halfLife · log2(C / threshold)
+    ///
+    /// `C` is read from the model itself (`calculateCaffeineLevel`), so the forecast and the
+    /// drawn curve cannot drift apart: the same decay, the same half-life, the same doses.
+    /// A forecast that disagreed with the chart would be the defect L4 closed — one screen,
+    /// two caffeine numbers.
+    ///
+    /// The dose set is the RULED one (L4: planned + logged, deduplicated), so a cup that was
+    /// planned and already drunk is counted once.
+    ///
+    /// - Returns: the instant the level reaches the threshold, or `nil` when there is nothing
+    ///   to forecast (no doses) — never a date in the past standing in for an answer.
+    static func caffeineFreeAt(
+        doses: [(Date, Double)],
+        halfLife: Double = 5.0,
+        metabolism: MetabolismRate = .medium,
+        under thresholdMg: Double = CaffeineConstants.caffeineFreeThresholdMg
+    ) -> Date? {
+        let effectiveHalfLife = halfLife * metabolism.halfLifeMultiplier
+        guard effectiveHalfLife > 0, thresholdMg > 0 else { return nil }
+
+        let usable = doses.filter { $0.1 > 0 }
+        guard let last = usable.map(\.0).max() else { return nil }
+
+        let levelAtLast = calculateCaffeineLevel(
+            doses: usable,
+            at: last,
+            halfLife: halfLife,
+            metabolism: metabolism
+        )
+        guard levelAtLast > thresholdMg else { return last }
+
+        let hours = effectiveHalfLife * log2(levelAtLast / thresholdMg)
+        return last.addingTimeInterval(hours * 3600)
+    }
 }

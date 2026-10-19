@@ -45,6 +45,7 @@ View -> AppState -> Repository -> GRDB SQLite
 | DoseModel / BeverageModel | Data/Models/ | GRDB records |
 | `projectBedtimeCaffeine` | Data/Models.swift | THE bedtime-projection funnel (one decay core) |
 | `calculateCaffeineLevel` | Data/Models.swift | Half-life decay core (halfLife * metabolism multiplier) |
+| `CaffeinePK.caffeineFreeAt` | Domain/CaffeinePK.swift | The instant the day is caffeine-free (solved from the same decay core) |
 | MetabolismRate / Sensitivity | Data/ | Half-life direction + bedtime limits |
 | DoseRepository | Data/Repositories/ | Dose CRUD |
 

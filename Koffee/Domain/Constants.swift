@@ -105,6 +105,19 @@ enum CaffeineConstants {
     /// not a weight, not a declared habit (roadmap K1).
     static let dailyCeilingMg: Double = 400
 
+    /// The level at which the app calls the day caffeine-free, in mg.
+    ///
+    /// P1. Caffeine never reaches zero -- the decay is exponential -- so "caffeine-free"
+    /// has to mean a line, and this is the line: **1 mg is the app's own reporting
+    /// resolution** (the dashboard prints milligrams as whole numbers, so below this the
+    /// level reads 0). It is a display convention, NOT a pharmacological threshold, and the
+    /// copy that shows the forecast names it ("under 1mg") so the sentence cannot be read
+    /// as a stronger claim than it is.
+    ///
+    /// Declared once: the derivation and the copy read this, so the forecast's meaning
+    /// cannot drift between them.
+    static let caffeineFreeThresholdMg: Double = 1.0
+
     static let compoundIdPrefix: String = "CAFFEINE"
     static let caffeineCompoundUuid: String = "caffeine"
 }
