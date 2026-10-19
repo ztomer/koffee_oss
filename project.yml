@@ -13,6 +13,9 @@ settings:
     CURRENT_PROJECT_VERSION: "2"
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "26.0"
+    # macOS is Apple silicon only (house policy): a Release build otherwise
+    # ships an x86_64 slice nobody has run (measured on 0.2.0: "x86_64 arm64").
+    ARCHS: "arm64"
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGN_ENTITLEMENTS: ""
