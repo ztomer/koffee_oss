@@ -350,7 +350,10 @@ func caffeineFreeLine(
     calendar: Calendar = DateHelper.calendar
 ) -> String? {
     guard let freeAt else { return nil }
-    let threshold = Int(CaffeineConstants.caffeineFreeThresholdMg)
+    // Printed, so it must not be rounded into a DIFFERENT number: casting the threshold to
+    // an Int would print "under 0mg" for anything under 1 mg — a sentence that lies about
+    // the line the derivation uses.
+    let threshold = String(format: "%g", CaffeineConstants.caffeineFreeThresholdMg)
     guard freeAt > now else {
         return "Caffeine-free now (under \(threshold)mg)."
     }
