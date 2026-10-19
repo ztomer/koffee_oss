@@ -20,11 +20,11 @@ NUMBERS and their citations, never BigKoff's code.
 
 Standing constraints: everything data-driven, nothing hardcoded (derive from
 `beverages.json`, GRDB, or computed PK values). House gates stay green: build,
-191 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
+226 tests, `swiftlint --strict`, no compiler warnings, user-POV screenshot for
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
-**State (measured 2026-10-15):** v0.1.0; `main` is in sync with `origin/main`.
+**State (measured 2026-10-19):** v0.2.0 released (Phase 0b, 0c, 0d); `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
 gate has stayed green since, through all five Phase 0b items — K1 (`2542390`),
 K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
@@ -34,8 +34,7 @@ every launch, and because the test host is the app, a push did it too —
 `tools/gate.sh --full` was green over it throughout. Both halves are closed in **Phase 0c**
 (L1, L2, `5ec4301`). The harness that went looking is built now (**G4**, `2afc200`), and its first
 render found a third thing (**L3**, Phase 0d): the chart silently dropped doses over 150 mg — fixed at
-`4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets — open, needs a ruling
-on the dose set) and **L5** ("Peak" named the first dose's peak, not the curve's — fixed at
+`4fb39d9`, and the same render filed **L4** (two bedtime numbers, two dose sets — ruled 2026-10-17 and closed at `6a9d9de`) and **L5** ("Peak" named the first dose's peak, not the curve's — fixed at
 `1683c6f`). The harness's own limit is gone too (**G5**, `fa60bfa`): the clock is one seam a render
 pins, so a picture is a function of the instant asked for rather than of when it was drawn.
 
@@ -405,8 +404,8 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   What it does not do: the fixture's doses are fixed times on its day, so the pin chooses *which of them*
   is already in the tank, rather than expressing a state the fixture cannot build. And the tank's level
   still comes from logged doses alone while the chart draws logged doses *plus* pending plan items — the
-  L4 question, now visible in a third surface: at noon `currentCaffeineLevel` is 0 beside a
-  "Current Caffeine" of 47 mg.
+  L4 question, then visible in a third surface: at noon `currentCaffeineLevel` was 0 beside a
+  "Current Caffeine" of 47 mg. Closed by L4 (`6a9d9de`): the tank reads the same ruled dose set.
 
 ## Phase 0c — the launch path and the user's data (found 2026-10-16)
 
@@ -482,7 +481,7 @@ the same 200 mg dose below 150 and the two agree". The post-fix render refutes i
 **"At Bedtime 76mg"** against the banner's 65mg, and 76 = 65 + 10, the pending plan item. The filter
 was one cause; the dose set is another.
 
-**L4. Two bedtime numbers, two dose sets. — DONE (`TBD`).**
+**L4. Two bedtime numbers, two dose sets. — DONE (`6a9d9de`).**
 Owner ruling (2026-10-17): the dose set is **planned + logged**, deduplicating
 the case where the planned dose was already logged. The dedup is structural: a
 taken plan-dose is logged with the plan item's own id
@@ -555,6 +554,20 @@ forecast and quick-log. Size **M** each.
 - **P3. Tolerance as a pharmacodynamic gain, not a clearance change** — only if
   a tolerance input is added; chronic use does not change half-life (Robertson
   1981, Shi 1993). Parked until a user-facing reason exists.
+
+## Releases — how this repo ships
+
+There is no CI and no distribution channel: the pre-push gate (`tools/gate.sh --full` on a clean
+export of the pushed commit) is the CI, and the user's machine is the only install.
+
+1. Bump `MARKETING_VERSION` (and `CURRENT_PROJECT_VERSION`) in `project.yml` — the ONE version
+   source; `.gatesrc` declares it (`GOH_TAG_VERSION_SOURCES=xcodegen:project.yml`), so the pre-push
+   refuses a `v<semver>` tag the bundle would not report.
+2. `tools/gate.sh --full` green; build Release, replace `/Applications/Koffee.app`, confirm
+   `CFBundleShortVersionString` is the new version and the app launches.
+3. `git tag -a vX.Y.Z` with the notes (what changed, what was wrong, what to re-check), then ONE push:
+   `git push origin main vX.Y.Z`; prove it with `git fetch`, `rev-list --count origin/main..main` = 0
+   and the tag in `git ls-remote --tags origin`.
 
 ## Recurring gates (run them every pass)
 

@@ -30,3 +30,10 @@ GOH_DEAD_AFTER_EXEC_MIN_FILES=11    # read 13
 GOH_BARE_HOOK_INDEX_MIN_FILES=11    # read 13
 GOH_BARE_PYTHON_MIN_FILES=5         # read 6
 GOH_UNREAPED_SPAWN_MIN_FILES=1      # read 2
+GOH_TAP_WRITES_MIN_FILES=14         # read 16 (2026-10-19)
+
+# The release version lives in ONE place: project.yml's MARKETING_VERSION, which
+# becomes the bundle's CFBundleShortVersionString. The pre-push tag check reads
+# it, so a `v<semver>` tag that disagrees with what the app reports is refused.
+# (v0.1.0 shipped an app reporting 1.0.0 because nothing compared the two.)
+GOH_TAG_VERSION_SOURCES="xcodegen:project.yml"
