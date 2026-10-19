@@ -27,7 +27,8 @@ must go red once before it is trusted green.
 **State (measured 2026-10-19):** v0.2.0 released (Phase 0b, 0c, 0d); `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
 gate has stayed green since, through all five Phase 0b items — K1 (`2542390`),
-K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`).
+K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`) — and through
+the architecture gate (Phase 1, G6).
 
 **Found and fixed 2026-10-16:** the app's launch path deleted and recreated the user's profile on
 every launch, and because the test host is the app, a push did it too —
@@ -407,6 +408,28 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   L4 question, then visible in a third surface: at noon `currentCaffeineLevel` was 0 beside a
   "Current Caffeine" of 47 mg. Closed by L4 (`6a9d9de`): the tank reads the same ruled dose set.
 
+- **G6. Nothing checked the architectures the app ships — DONE.**
+  The Release build was arm64-only because `project.yml` said `ARCHS: "arm64"`, and nothing failed
+  if an x86_64 slice came back: a setting that is only a setting is a convention, and the house
+  rule (target-platform-policy) is that an unsupported architecture is a HARD FAILURE, never a
+  warning that builds anyway.
+
+  `tools/arch_gate.sh` reads the supported set from **one** declared source — `project.yml`'s
+  `ARCHS` — builds Release, reads the shipped Mach-O with `lipo -archs`, and fails if any
+  architecture outside the declared set is in it (an embedded framework counts: it ships too).
+  It fails closed: no binary, no declared `ARCHS`, an unreadable project file are all red, never
+  a pass because the checker could not read its subject. A second copy of the set inside the
+  script would be a second policy, and a policy that can disagree with the build is not one.
+
+  `tools/arch_gate_test.sh` is the calibration: it builds real Mach-O fixtures (the declared
+  architecture, an undeclared one, and a universal binary carrying the slice that came back) and
+  reads every red by its MESSAGE, not only by its exit code. Both run in `tools/gate.sh --full`,
+  after the swift gate — that gate wipes `.build` when it is cold, so a Release build made
+  before it would be deleted before it could be read.
+
+  Red before green: the planted universal Release binary read `arm64 x86_64` and the gate named
+  `x86_64`; the real product reads `arm64`.
+
 ## Phase 0c — the launch path and the user's data (found 2026-10-16)
 
 Found while probing a headless render harness, which needs the test process to stop touching the
@@ -447,8 +470,8 @@ is the harness's precondition, not a preference: a render harness runs in this s
 
 ## Phase 0d — found by the first render (2026-10-16)
 
-The harness's first screenshot (G4) put two bedtime numbers on one screen. Three defects sit behind
-that disagreement — two fixed, one still open.
+The harness's first screenshot (G4) put two bedtime numbers on one screen. Three defects sat
+behind that disagreement; all three are closed below (L3, L4, L5).
 
 **L3. The chart drops every dose over 150 mg. — DONE (`4fb39d9`).**
 `generateUnifiedCurvePoints` (`Koffee/Data/Models.swift:171`) ran

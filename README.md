@@ -60,4 +60,6 @@ View -> AppState -> Repository -> GRDB SQLite
 | `./run.sh` | Build + open Koffee.app |
 | `./test.sh` | LiquidContainer + app test suites |
 | `./clean.sh` | Remove DerivedData + build artifacts |
-| `tools/gate.sh --full` | House gates (structure, swift, lint) |
+| `tools/gate.sh --full` | House gates (structure, swift, lint, shipped architectures) |
+| `tools/arch_gate.sh` | Build Release, then check the shipped Mach-O against the declared `ARCHS` |
+| `tools/arch_gate_test.sh` | Calibration: prove the architecture gate can still fail |

@@ -30,6 +30,13 @@ case "${1:-}" in
     # than after a full xcodebuild test run.
     bash "$here/no_bare_print.sh"
     "$GOH/gates/swift_gate.sh" .
+    # The architectures the app SHIPS are checked against the ones the repo
+    # DECLARES (G6). After the swift gate on purpose: that gate wipes .build
+    # when it is cold, so a Release build made before it would be deleted
+    # before it could be read. The calibration runs first because it is fast
+    # and it is what says the checker can still fail.
+    bash "$here/arch_gate_test.sh"
+    bash "$here/arch_gate.sh"
     # No Python layers: koffee_etl/ (USDA nutrition + Wger exercise pipeline)
     # was removed 2026-09 - non-coffee feature strip.
     ;;
