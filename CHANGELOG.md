@@ -6,6 +6,47 @@ commit changed.
 
 ## Unreleased
 
+**The greyscale check has a harness.** "Greyscale single-channel check on every new visual
+distinction" was a standing rule with nothing behind it: the check ran in nobody's head, so a
+distinction that failed in greyscale passed the gate silently. It is now one command, wired into
+the pre-push gate, and it fails with the reason.
+
+- The states are DISCOVERED in the sources — an if/else chain, a switch, a ternary chain — not
+  read from a list. A hand-kept list goes stale, and a stale list is a gate that checks the wrong
+  thing; a distinction added tomorrow is found tomorrow.
+- The colours are MEASURED through AppKit in the light and the dark appearance, and turned into
+  the greyscale the reader actually sees (CIE L*). A table of remembered RGB values is a table that
+  rots, and a check built on a rotted table cannot fail.
+- The rule: a distinction carried by colour alone — no word, no symbol, no shape, and no other
+  group in the same file that already tells the states apart — whose colours are closer than
+  10 L* apart is refused, named by file, by the two states, by their colours and by the gap.
+- `tools/greyscale_gate_test.sh` is the calibration: it plants a distinction that fails in
+  greyscale (the chart's over-limit figure repainted orange, which is the same shade as green)
+  and reads the verdict by its MESSAGE, not only by its exit code.
+- The checker's first run refused `colorForCompound(_:)` — thirteen compounds, thirteen colours,
+  no name beside them, and no caller left. It is deleted.
+
+What a user sees: nothing. What a push sees: a tree whose new visual distinction rides on hue
+alone is refused.
+
+Re-check on your own setup: `tools/greyscale_gate.sh` prints the distinctions it found and the
+closest pair it judged; `tools/greyscale_gate_test.sh` proves the check can still fail.
+
+**The dashboard is split along its seams.** `DashboardView.swift` was 483 lines against a
+500-line cap, so the next addition there would have tripped the gate the plan set on purpose. The
+cap is a ceiling to force a split, not a number to raise, so the file is split instead.
+
+- `DashboardOracleBanner.swift` — the banner, a view that takes what it shows and derives
+  nothing.
+- `DashboardCopy.swift` — the oracle's sentences, as pure functions.
+- `DashboardWidgets.swift` — the stat tiles.
+- `DashboardBubbles.swift` — the bubble layout helpers.
+
+What a user sees: nothing. The dashboard draws the same pixels; 236 tests and the full gate are
+green. `DashboardView.swift` is 271 lines, with room to work.
+
+Re-check on your own setup: nothing to re-check — this is a move, and the gate is the proof.
+
 **The shipped architectures are gated.** The Release build was arm64-only because `project.yml`
 said `ARCHS: "arm64"`, and nothing failed if an x86_64 slice came back — a setting that is only
 a setting is a convention, and the house rule (target-platform-policy) is that an unsupported

@@ -24,11 +24,11 @@ Standing constraints: everything data-driven, nothing hardcoded (derive from
 every visual change, greyscale check for every new distinction, and a new test
 must go red once before it is trusted green.
 
-**State (measured 2026-10-19):** v0.2.0 released (Phase 0b, 0c, 0d); `main` is in sync with `origin/main`.
+**State (measured 2026-10-20):** v0.2.0 released (Phase 0b, 0c, 0d); `main` is in sync with `origin/main`.
 `tools/gate.sh --full` is **green** — Phase 0 closed it 2026-10-14 and the
 gate has stayed green since, through all five Phase 0b items — K1 (`2542390`),
 K2 (`bed737d`), K3 (`f5a71d7`), K4 (`a6a9470`), K5 (`2aeb51d`) — and through
-the architecture gate (Phase 1, G6).
+the architecture gate (Phase 1, G6) and the greyscale gate (Phase 1, G7).
 
 **Found and fixed 2026-10-16:** the app's launch path deleted and recreated the user's profile on
 every launch, and because the test host is the app, a push did it too —
@@ -430,6 +430,38 @@ Goal: the gate can fail on everything the house rules require. Size **S**.
   Red before green: the planted universal Release binary read `arm64 x86_64` and the gate named
   `x86_64`; the real product reads `arm64`.
 
+- **G7. The recurring greyscale rule had no harness — DONE (`d48a58a`).**
+  "Greyscale single-channel check on every new visual distinction" was a standing constraint with
+  nothing behind it: the check ran in nobody's head, so a distinction that failed in greyscale
+  passed the gate silently. It is now one command, `tools/greyscale_gate.sh`, wired into
+  `tools/gate.sh --full` before the swift gate, and it fails with the reason.
+
+  **The states are discovered, not listed.** A hand-kept list of the app's distinctions is a list
+  that goes stale, and a stale list is a gate that checks the wrong thing; so the checker finds the
+  branch structures in the sources — an if/else chain, a switch, a ternary chain — and takes the
+  states from them. A distinction added tomorrow is found tomorrow.
+
+  **The colours are measured, not remembered.** Every colour is resolved through AppKit in the
+  light and the dark appearance and turned into the greyscale the reader actually sees (CIE L\*).
+  A table of remembered RGB values is a table that rots, and a check built on a rotted table cannot
+  fail.
+
+  **The rule.** A distinction is carried by colour alone — no word, no symbol, no shape, and no
+  other group in the same file that already tells the states apart — and its colours are closer
+  than 10 L\* apart, then it is RED, named by file, by the two states, by their colours and by the
+  measured gap. The measured margin today is 12.5 L\* (yellow against green, the history view's
+  risk colours).
+
+  **Calibrated.** `tools/greyscale_gate_test.sh` plants a distinction that fails in greyscale — the
+  chart's over-limit figure repainted orange, which is the same shade as green — and reads the
+  verdict by its MESSAGE, not only by its exit code. The unplanted tree is green; the planted one
+  is red and named.
+
+  **One real finding, and it was dead.** The checker's first run refused `colorForCompound(_:)` —
+  thirteen compounds, thirteen colours, no name beside them: the compound era's colour map, in a
+  coffee-only app, with no caller left. It is deleted. Two other dead views, `RiskLevelBadge` and
+  `MetricCard`, are not flagged by the check and are still here.
+
 ## Phase 0c — the launch path and the user's data (found 2026-10-16)
 
 Found while probing a headless render harness, which needs the test process to stop touching the
@@ -614,7 +646,9 @@ export of the pushed commit) is the CI, and the user's machine is the only insta
 
 ## Recurring gates (run them every pass)
 
-- Greyscale single-channel check on every new visual distinction.
+- Greyscale single-channel check on every new visual distinction — now one command
+  (`tools/greyscale_gate.sh`), and the states are found in the sources rather than kept in a
+  list, so a new distinction is checked when it is added (see G7).
 - User-POV screenshot at native pixels for every visual change — now one command per surface
   (`KOFFEE_RENDER=dashboard|notifications`, see G4), not a launch over the owner's data.
 - New tests must go red first (break the code once) before trusting green.
