@@ -113,22 +113,3 @@ struct RiskLevelBadge: View {
         .clipShape(.capsule)
     }
 }
-
-func colorForCompound(_ compound: String) -> Color {
-    switch compound.lowercased() {
-    case "caffeine": return .orange
-    case "l-theanine": return .blue
-    case "magnesium": return .purple
-    case "ashwagandha": return .green
-    case "vitamin b": return .yellow
-    case "rhodiola": return .orange
-    case "theacrine": return .cyan
-    case "creatine": return .red
-    case "alpha-gpc": return .mint
-    case "l-tyrosine": return .teal
-    case "psyllium husk": return .brown
-    case "glycine": return .pink
-    case "custom": return .indigo
-    default: return .gray
-    }
-}

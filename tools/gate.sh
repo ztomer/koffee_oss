@@ -29,6 +29,13 @@ case "${1:-}" in
     # Before the swift gate, so a planted print is caught in seconds rather
     # than after a full xcodebuild test run.
     bash "$here/no_bare_print.sh"
+    # The greyscale check (the roadmap's "greyscale check for every new
+    # distinction"), and its calibration: the check has to be able to fail, so
+    # the calibration plants a distinction that fails in greyscale and reads
+    # the verdict by its message. Both before the swift gate, for the same
+    # reason the print check is.
+    bash "$here/greyscale_gate_test.sh"
+    bash "$here/greyscale_gate.sh"
     "$GOH/gates/swift_gate.sh" .
     # The architectures the app SHIPS are checked against the ones the repo
     # DECLARES (G6). After the swift gate on purpose: that gate wipes .build
