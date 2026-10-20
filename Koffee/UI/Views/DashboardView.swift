@@ -1,6 +1,18 @@
 import SwiftUI
 import LiquidContainer
 
+// The dashboard's own view.
+//
+// The pieces around it were cut out along the seams that had their own reasons to exist:
+//
+//   DashboardOracleBanner.swift  the banner, a view that takes what it shows
+//   DashboardCopy.swift          the oracle's sentences, as pure functions
+//   DashboardWidgets.swift       the stat tiles
+//   DashboardBubbles.swift       the bubble layout helpers
+//
+// The cut is by dependency, not by size: each of those can be read, changed and tested
+// without the tank, the chart or the physics engine, which is what the 500-line cap was
+// asking for.
 struct DashboardView: View {
     @ObservedObject var appState: AppState
     @Binding var columnVisibility: NavigationSplitViewVisibility
@@ -29,7 +41,7 @@ struct DashboardView: View {
         appState.todayCaffeineTotal
     }
 
-var pendingCaffeine: Double {
+    var pendingCaffeine: Double {
         appState.pendingPlanItemsByCompound("caffeine").reduce(0) { $0 + $1.doseMg }
     }
 
@@ -137,76 +149,21 @@ var pendingCaffeine: Double {
     // MARK: - Oracle Banner
 
     private var oracleBanner: some View {
-        Group {
-            // Show tolerance alert first (highest priority warning)
-            if let toleranceAlert = appState.toleranceAlert {
-                HStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.yellow)
-                        .frame(width: 40, height: 40)
-                        .background(.yellow.opacity(0.2))
-                        .clipShape(.circle)
+        DashboardOracleBanner(
+            toleranceAlert: appState.toleranceAlert,
+            title: bedtimeStatusTitle,
+            icon: bedtimeStatusIcon,
+            color: bedtimeStatusColor,
+            subtitle: oracleSubtitle,
+            forecast: caffeineFreeForecast
+        )
+    }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Caffeine Tolerance Alert")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.primary)
-
-                        Text(toleranceAlert.message)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    Spacer()
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.yellow.opacity(0.15))
-                )
-            } else {
-                HStack(spacing: 12) {
-                    Image(systemName: bedtimeStatusIcon)
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(bedtimeStatusColor)
-                        .frame(width: 40, height: 40)
-                        .background(bedtimeStatusColor.opacity(0.2))
-                        .clipShape(.circle)
-                        .symbolEffect(.bounce, value: bedtimeStatusTitle)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(bedtimeStatusTitle)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.primary)
-
-                        Text(oracleSubtitle)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-
-                        // P1: the forecast. It rides on the ruled dose set the chart draws
-                        // (L4) and on the same decay model, so it is the curve's own answer
-                        // rather than a second caffeine number.
-                        if let forecast = caffeineFreeLine(freeAt: caffeineFreeAt, now: DateHelper.now) {
-                            Text(forecast)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(nsColor: .controlBackgroundColor).opacity(0.8))
-                )
-            }
-        }
+    /// The forecast line, when there is one. P1: it rides on the ruled dose set the
+    /// chart draws (L4) and on the same decay model, so it is the curve's own answer
+    /// rather than a second caffeine number.
+    private var caffeineFreeForecast: String? {
+        caffeineFreeLine(freeAt: caffeineFreeAt, now: DateHelper.now)
     }
 
     // MARK: - Caffeine HUD
@@ -310,174 +267,5 @@ var pendingCaffeine: Double {
         guard force || bucket != lastBubbleBucket else { return }
         lastBubbleBucket = bucket
         bubbleStates = dashboardBubbles(count: bubbleCount(forFillRatio: fillRatio), seed: RenderHarness.bubbleSeedWhenRendering)
-    }
-}
-
-// MARK: - Oracle copy (pure, testable)
-/// Per-state oracle line. Numbers stay honest: every state names the bedtime mg.
-func oracleLine(bedtimeMg: Double, limit: Double, thresholdName: String) -> String {
-    let mg = Int(bedtimeMg)
-    if bedtimeMg <= limit * 0.5 {
-        return "Thanks for keeping it early — \(mg)mg at bedtime."
-    } else if bedtimeMg <= limit {
-        return "Still wired at \(mg)mg by bedtime — easy on the next cup."
-    } else {
-        // K4. "over the 50mg limit" read as evidence the app had measured. Only
-        // the 100 mg figure is sourced; 50 and 25 are the reader's own stricter
-        // choice, and the sentence now says so rather than letting a convention
-        // pass as a finding.
-        return "Put the pot down — \(mg)mg at bedtime, over \(thresholdName)."
-    }
-}
-
-/// The forecast line under the oracle sentence: when the day's modelled caffeine falls
-/// under the threshold the app calls "none" (P1).
-///
-/// The line NAMES the threshold, because "caffeine-free" is only ever true of a line the
-/// app chose — 1 mg, its own reporting resolution. A sentence that said "caffeine-free"
-/// with no line would be a claim the reader has no way to check, which is the shape K4
-/// found and closed.
-///
-/// The day is named too ("today", "tomorrow", or the date): a clock time without its day
-/// is a forecast the reader has to guess about, and guessing is how "06:09" becomes
-/// "six in the morning".
-///
-/// - Returns: `nil` when there is nothing to forecast (no doses) — a line with no fact
-///   behind it is worse than no line.
-func caffeineFreeLine(
-    freeAt: Date?,
-    now: Date,
-    calendar: Calendar = DateHelper.calendar
-) -> String? {
-    guard let freeAt else { return nil }
-    // Printed, so it must not be rounded into a DIFFERENT number: casting the threshold to
-    // an Int would print "under 0mg" for anything under 1 mg — a sentence that lies about
-    // the line the derivation uses.
-    let threshold = String(format: "%g", CaffeineConstants.caffeineFreeThresholdMg)
-    guard freeAt > now else {
-        return "Caffeine-free now (under \(threshold)mg)."
-    }
-    let time = clockTime(freeAt, calendar: calendar)
-    let day = dayLabel(freeAt, now: now, calendar: calendar)
-    return "Caffeine-free at \(time) \(day) (under \(threshold)mg)."
-}
-
-/// "HH:mm" in the reader's own zone — the app's clock format (the chart's stat row uses it).
-private func clockTime(_ date: Date, calendar: Calendar) -> String {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "HH:mm"
-    formatter.timeZone = calendar.timeZone
-    return formatter.string(from: date)
-}
-
-/// How the forecast names the day the instant falls on.
-private func dayLabel(_ date: Date, now: Date, calendar: Calendar) -> String {
-    if calendar.isDate(date, inSameDayAs: now) {
-        return "today"
-    }
-    if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)),
-       calendar.isDate(date, inSameDayAs: tomorrow) {
-        return "tomorrow"
-    }
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US")
-    formatter.dateFormat = "EEE d MMM"
-    formatter.timeZone = calendar.timeZone
-    return formatter.string(from: date)
-}
-
-/// Idle bubble count scales with fill ratio using the existing generator.
-/// Pure for testing: 20 empty … 40 full.
-func bubbleCount(forFillRatio ratio: Double) -> Int {
-    let clamped = min(max(ratio, 0), 1)
-    return 20 + Int((clamped * 20).rounded())
-}
-
-/// The dashboard's bubbles.
-///
-/// While `KOFFEE_RENDER` is set they are drawn from a fixed seed, because `BubbleGenerator`'s layout
-/// is the one thing in a dashboard render that comes from the system's entropy — two screenshots of
-/// the same surface would otherwise differ only in where the bubbles sit. The app is unchanged: it
-/// draws from the system, as before.
-///
-/// The seed is a parameter rather than a read of the environment so the seeded layout can be tested
-/// for what it claims (the same seed twice is the same layout) in a process that is not rendering.
-func dashboardBubbles(count: Int, seed: UInt64?) -> [BubbleState] {
-    guard let seed else {
-        return BubbleGenerator.generate(count: count, width: 400, height: 300)
-    }
-    var generator = SeededRandomNumberGenerator(seed: seed)
-    return BubbleGenerator.generate(count: count, width: 400, height: 300, using: &generator)
-}
-
-// MARK: - Stat Widget
-
-struct CaffeineStatWidget: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                    .foregroundStyle(color)
-                Text(title)
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(value)
-                .font(.system(size: 18, weight: .bold, design: .monospaced))
-                .foregroundStyle(color)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.5))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(color.opacity(0.3), lineWidth: 1)
-        )
-    }
-}
-
-// MARK: - Metric Card
-
-struct MetricCard: View {
-    let title: String
-    let value: String
-    let unit: String
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .foregroundStyle(color)
-
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .monospaced))
-                    .foregroundStyle(color)
-                Text(unit)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(color.opacity(0.2), lineWidth: 1)
-        )
     }
 }
