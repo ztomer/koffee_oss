@@ -6,6 +6,22 @@ commit changed.
 
 ## Unreleased
 
+**The plan is pruned to what is open.** `ROADMAP.md` is the one forward-looking
+file, and the closed rows (Phase 0b's K1-K5, Phase 0c's L1-L2, Phase 0d's
+L3-L5, Phase 1's G1-G7, Phase 2's P1) have left it. What each was, and why it
+was right, is in `git log` and in the version of the plan before the prune
+(`git show 0b835c9:ROADMAP.md`); the commits that shipped them are named in
+the plan's state block, so nothing is lost and no closed item reads as work
+that is still to do.
+
+- What is left: **P2** (quick-log — the owner chooses the surface) and **P3**
+  (tolerance — parked until a user-facing reason exists), plus the house rows
+  7.4 (where the "no tracked build output" check runs) and 3.3 (no subject
+  here: this repo tracks no Python).
+
+What a user sees: nothing. What a reader sees: a plan that says what is open
+and who can move it.
+
 **The greyscale check has a harness.** "Greyscale single-channel check on every new visual
 distinction" was a standing rule with nothing behind it: the check ran in nobody's head, so a
 distinction that failed in greyscale passed the gate silently. It is now one command, wired into
