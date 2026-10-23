@@ -44,6 +44,8 @@ enum RenderHarness {
         case dashboard
         /// The notifications preview: the dose-dependent cutoff line (K3).
         case notifications
+        /// The menu bar popover: live level, risk badge, quick-log usual beverage (P2).
+        case menubar
     }
 
     /// Set to a `Surface`'s raw value to draw that surface and exit.
@@ -206,6 +208,20 @@ enum RenderHarness {
             return try draw(
                 NotificationsView(appState: fixture.state)
                     .frame(width: size.width, height: size.height)
+            )
+        case .menubar:
+            let fixture = try Fixture.overBedtimeLimit()
+            let manager = MenuBarManager()
+            manager.bind(appState: fixture.state)
+            return try draw(
+                ZStack {
+                    Color(nsColor: .windowBackgroundColor)
+                    MenuBarPopoverView(controller: manager)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .shadow(radius: 6)
+                }
+                .frame(width: size.width, height: size.height)
             )
         }
     }

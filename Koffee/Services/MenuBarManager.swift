@@ -1,19 +1,23 @@
 import SwiftUI
 import AppKit
+import Combine
 
 @MainActor
 class MenuBarManager: ObservableObject {
     private var _statusItem: NSStatusItem?
-    private var popover: NSPopover?
+    var popover: NSPopover?
 
     @Published var currentLevel: Double = 0
     @Published var riskLevel: RiskLevel = .low
+    weak var appState: AppState?
+    private var cancellables = Set<AnyCancellable>()
 
     var statusItem: NSStatusItem? {
         return _statusItem
     }
 
-    func setup() {
+    func setup(appState: AppState? = nil) {
+        self.appState = appState
         _statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = statusItem?.button {
@@ -23,15 +27,96 @@ class MenuBarManager: ObservableObject {
         }
 
         popover = NSPopover()
-        popover?.contentSize = NSSize(width: 300, height: 200)
+        popover?.contentSize = NSSize(width: 280, height: 190)
         popover?.behavior = .transient
         popover?.contentViewController = NSHostingController(rootView: MenuBarPopoverView(controller: self))
+
+        if appState != nil {
+            bindAppState()
+        }
+    }
+
+    func bind(appState: AppState) {
+        self.appState = appState
+        bindAppState()
+    }
+
+    private func bindAppState() {
+        guard let appState = appState else { return }
+        cancellables.removeAll()
+
+        appState.$currentCaffeineLevel
+            .combineLatest(appState.$caffeineAtBedtime)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] level, bedtime in
+                guard let self = self else { return }
+                let limit = self.appState?.safeCaffeineLimit ?? CaffeineConstants.defaultBedtimeMg
+                let risk: RiskLevel
+                if bedtime > limit * 1.5 {
+                    risk = .critical
+                } else if bedtime > limit {
+                    risk = .high
+                } else if bedtime > limit * 0.5 {
+                    risk = .medium
+                } else {
+                    risk = .low
+                }
+                self.updateStatus(level: level, risk: risk)
+            }
+            .store(in: &cancellables)
     }
 
     func updateStatus(level: Double, risk: RiskLevel) {
         self.currentLevel = level
         self.riskLevel = risk
         updateStatusIcon()
+    }
+
+    func logQuickDose() {
+        guard let state = appState else { return }
+        let beverage: (id: String?, name: String, mg: Double)
+        if let usualId = state.usualBeverageId, let usual = state.findBeverage(byId: usualId) {
+            beverage = (usual.id, usual.name, Double(usual.caffeineMg))
+        } else if let first = state.beverages.first {
+            beverage = (first.id, first.name, Double(first.caffeineMg))
+        } else {
+            beverage = (nil, "Coffee", 95.0)
+        }
+
+        do {
+            try state.addDose(
+                beverageId: beverage.id,
+                timestamp: DateHelper.now,
+                caffeineMg: beverage.mg,
+                beverageName: beverage.name
+            )
+            popover?.performClose(nil)
+        } catch {
+            debugLog("Quick log failed: \(error)")
+        }
+    }
+
+    func logDose(beverage: BeverageModel) {
+        guard let state = appState else { return }
+        do {
+            try state.addDose(
+                beverageId: beverage.id,
+                timestamp: DateHelper.now,
+                caffeineMg: Double(beverage.caffeineMg),
+                beverageName: beverage.name
+            )
+            popover?.performClose(nil)
+        } catch {
+            debugLog("Log beverage dose failed: \(error)")
+        }
+    }
+
+    func openMainWindow() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let window = NSApp.windows.first(where: { $0 is KoffeeWindow || $0.canBecomeMain }) {
+            window.makeKeyAndOrderFront(nil)
+        }
+        popover?.performClose(nil)
     }
 
     private func updateStatusIcon() {
@@ -57,7 +142,6 @@ class MenuBarManager: ObservableObject {
 
         let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
         if let image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?.withSymbolConfiguration(config) {
-            // NSImage.copy() is typed Any; a copied NSImage always downcasts.
             if let coloredImage = image.copy() as? NSImage {
                 coloredImage.isTemplate = false
                 button.image = coloredImage
@@ -81,6 +165,14 @@ class MenuBarManager: ObservableObject {
 
 struct MenuBarPopoverView: View {
     @ObservedObject var controller: MenuBarManager
+
+    private var usualBeverage: BeverageModel? {
+        if let id = controller.appState?.usualBeverageId,
+           let bev = controller.appState?.findBeverage(byId: id) {
+            return bev
+        }
+        return controller.appState?.beverages.first
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -119,18 +211,43 @@ struct MenuBarPopoverView: View {
                     .font(.system(size: 12, weight: .semibold))
 
                 HStack(spacing: 8) {
-                    Button("Log Coffee") {}
-                        .buttonStyle(.bordered)
+                    if let beverage = usualBeverage {
+                        Button("Log \(beverage.name) (\(Int(beverage.caffeineMg))mg)") {
+                            controller.logQuickDose()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                    } else {
+                        Button("Log Coffee (95mg)") {
+                            controller.logQuickDose()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                    }
 
-                    Button("View Timeline") {}
-                        .buttonStyle(.bordered)
+                    Button("Open Koffee") {
+                        controller.openMainWindow()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if let beverages = controller.appState?.beverages, beverages.count > 1 {
+                    Menu("Other Beverage…") {
+                        ForEach(beverages) { bev in
+                            Button("\(bev.name) (\(Int(bev.caffeineMg))mg)") {
+                                controller.logDose(beverage: bev)
+                            }
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .font(.system(size: 11))
                 }
             }
 
             Spacer()
         }
         .padding()
-        .frame(width: 280, height: 180)
+        .frame(width: 280, height: 190)
     }
 
     private var riskBadge: some View {

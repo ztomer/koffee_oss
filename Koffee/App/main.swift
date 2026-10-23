@@ -185,6 +185,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     beverageRepo: beverageRepo,
                     planRepo: planRepo
                 )
+                menuBarController?.bind(appState: appState)
                 debugLog("STEP 13: AppState created, profile=\(appState.profile != nil), doses=\(appState.doses.count)")
 
                 try appState.refreshDailyPlan()

@@ -161,10 +161,11 @@ item in it waits on the OWNER.
   own reporting resolution), and the copy names the line it solved for. The
   narrative is in `CHANGELOG.md`.
 - **P2. Quick-log from the menu bar / a widget** for the usual beverage
-  (`usualBeverageId` exists) — **the OWNER chooses the surface** (a menu-bar
-  item, a widget, or both), and nothing else here can move it: the WHAT is
-  settled by the competitor survey, and only the WHERE is open. *Unblocks:*
-  the owner names the surface; the item is then one build session.
+  (`usualBeverageId` exists) — **closed (2026-10-23)**: the owner ruled the menu
+  bar (`p2 - menubar`). Menu bar popover displays live active caffeine level,
+  risk badge, prominent quick-log for the usual beverage (or default coffee),
+  menu for alternate beverages, and window reveal action. Bound reactively to
+  `AppState`, added to `RenderHarness` (`.menubar`), and covered by `MenuBarManagerTests`.
 - **P3. Tolerance as a pharmacodynamic gain, not a clearance change** —
   **parked**, and it stays parked until a user-facing reason exists: a
   tolerance INPUT is added, and then chronic use is modelled as a gain, never
@@ -178,8 +179,8 @@ item in it waits on the OWNER.
 What is open in this repo, and the hand each one needs. Every other item in
 this file is closed, and the commit that shipped it is named above.
 
-- **P2, quick-log** — **the owner**: the choice of surface (menu bar, widget,
-  or both). Picking it here would be the work, not the preparation for it.
+- **P2, quick-log** — **closed (2026-10-23)**: menu bar quick-log for the usual beverage
+  shipped with live AppState binding, alternate beverage menu, and tests.
 - **P3, tolerance** — **parked**: it starts when a tolerance input is added,
   and it is not agent work before that.
 - **The house's 7.4, the "no tracked build output" check** — **the owner**:
