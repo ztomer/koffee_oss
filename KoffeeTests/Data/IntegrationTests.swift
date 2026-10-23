@@ -138,7 +138,8 @@ final class IntegrationTests: XCTestCase {
 
     // Integration: caffeine curve computation
     func testCaffeineCurveComputation() throws {
-        let now = Date()
+        let calendar = Calendar.current
+        let now = calendar.startOfDay(for: Date()).addingTimeInterval(8 * 3600)
         try appState.addDose(timestamp: now, caffeineMg: 95.0, beverageName: "Coffee")
         try appState.addDose(timestamp: now.addingTimeInterval(3600), caffeineMg: 50.0, beverageName: "Tea")
         try appState.addDose(timestamp: now.addingTimeInterval(7200), caffeineMg: 30.0, beverageName: "Green Tea")
