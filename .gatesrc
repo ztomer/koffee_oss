@@ -37,3 +37,7 @@ GOH_TAP_WRITES_MIN_FILES=14         # read 16 (2026-10-19)
 # it, so a `v<semver>` tag that disagrees with what the app reports is refused.
 # (v0.1.0 shipped an app reporting 1.0.0 because nothing compared the two.)
 GOH_TAG_VERSION_SOURCES="xcodegen:project.yml"
+
+# A commit that ADDS a test names, in a `Red-run:` trailer, the mutation that
+# turned that test red (goh red-run, BACKLOG 4.11; owner OW.8, 2026-10-31).
+GOH_RED_RUN=1
