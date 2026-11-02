@@ -1,0 +1,9 @@
+{
+  "why": "shellcheck findings below error severity when this repo adopted the ratcheted shell lint, per file#code; a count may only fall (gates_of_heck GOH.SHSEV)",
+  "files": {
+    "scripts/quick_build.sh#SC2164": 1,
+    "scripts/size_report.sh#SC2164": 1,
+    "scripts/split_models.sh#SC2164": 1,
+    "scripts/test_coverage.sh#SC2164": 1
+  }
+}
