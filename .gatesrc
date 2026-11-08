@@ -41,3 +41,7 @@ GOH_TAG_VERSION_SOURCES="xcodegen:project.yml"
 # A commit that ADDS a test names, in a `Red-run:` trailer, the mutation that
 # turned that test red (goh red-run, BACKLOG 4.11; owner OW.8, 2026-10-31).
 GOH_RED_RUN=1
+
+# What this repo installs on this Mac, each answering the newest tag's version (read by
+# ~/Projects/.loop installs.py for loopctl verify; LOOP.INSTALLED). An app is its /Applications path.
+GOH_INSTALLS='/Applications/Koffee.app'
