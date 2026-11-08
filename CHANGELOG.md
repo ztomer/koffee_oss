@@ -11,13 +11,15 @@ file, and the closed rows (Phase 0b's K1-K5, Phase 0c's L1-L2, Phase 0d's
 L3-L5, Phase 1's G1-G7, Phase 2's P1) have left it. What each was, and why it
 was right, is in `git log` and in the version of the plan before the prune
 (`git show 0b835c9:ROADMAP.md`); the commits that shipped them are named in
-the plan's state block, so nothing is lost and no closed item reads as work
+the 2026-11-08 rework commit's body, so nothing is lost and no closed item reads as work
 that is still to do.
 
-- What is left: **P2** (quick-log — the owner chooses the surface) and **P3**
-  (tolerance — parked until a user-facing reason exists), plus the house rows
-  7.4 (where the "no tracked build output" check runs) and 3.3 (no subject
-  here: this repo tracks no Python).
+- What is left: **P3** (tolerance, parked until a user-facing reason exists)
+  and nothing else. P2 (quick-log) landed in `5d29818` as a menu bar popover;
+  the house rows 7.4 and 3.3 need nothing from this repo (7.4 became a
+  structural step in every repo, OW.29, 2026-10-31). The plan was reworked
+  again on 2026-11-08: finished rows, state blocks and the consolidation
+  narrative left it, and the open item carries a "Done when:" clause.
 
 What a user sees: nothing. What a reader sees: a plan that says what is open
 and who can move it.
