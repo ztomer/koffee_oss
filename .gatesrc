@@ -31,6 +31,7 @@ GOH_BARE_HOOK_INDEX_MIN_FILES=11    # read 13
 GOH_BARE_PYTHON_MIN_FILES=5         # read 6
 GOH_UNREAPED_SPAWN_MIN_FILES=1      # read 2
 GOH_TAP_WRITES_MIN_FILES=14         # read 16 (2026-10-19)
+GOH_DEAD_PORT_MIN_FILES=54              # read 61 (2026-11-16, GOH.FLOORREQ)
 
 # The release version lives in ONE place: project.yml's MARKETING_VERSION, which
 # becomes the bundle's CFBundleShortVersionString. The pre-push tag check reads
